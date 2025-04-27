@@ -18,7 +18,8 @@ const RoleSelection = () => {
     },
     flow: 'implicit',
     prompt: 'consent',
-    hosted_domain: 'sastra.ac.in', // Restrict to SASTRA student emails
+    // Temporarily removed for testing
+    // hosted_domain: 'sastra.ac.in',
     select_account: true
   });
 
@@ -34,7 +35,8 @@ const RoleSelection = () => {
     },
     flow: 'implicit',
     prompt: 'consent',
-    hosted_domain: 'sastra.edu', // Restrict to SASTRA faculty emails
+    // Temporarily removed for testing
+    // hosted_domain: 'sastra.edu',
     select_account: true
   });
 
@@ -54,7 +56,7 @@ const RoleSelection = () => {
           >
             <UserCog className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">Faculty</h2>
-            <p className="text-gray-600">Sign in with your @sastra.edu email</p>
+            <p className="text-gray-600">Sign in with Google</p>
           </button>
 
           <button
@@ -63,7 +65,7 @@ const RoleSelection = () => {
           >
             <Users className="w-12 h-12 text-green-600 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">Student</h2>
-            <p className="text-gray-600">Sign in with your @sastra.ac.in email</p>
+            <p className="text-gray-600">Sign in with Google</p>
           </button>
         </div>
       </div>

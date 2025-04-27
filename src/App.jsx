@@ -96,7 +96,25 @@ function App() {
           )}
 
           <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-            <Routes>
+          <Routes>
+              {!user ? (
+                <>
+                  <Route path="/" element={<RoleSelection />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </>
+              ) : (
+                <>
+                  {/* Temporarily removed email validation for testing */}
+                  <Route path="/faculty" element={<FacultyDashboard />} />
+                  <Route path="/student" element={<StudentDashboard />} />
+                  
+                  {/* Default route - temporarily set to faculty for testing */}
+                  <Route path="/" element={<Navigate to="/faculty" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </>
+              )}
+            </Routes>
+            {/* <Routes>
               {!user ? (
                 <>
                   <Route path="/" element={<RoleSelection />} />
@@ -105,7 +123,7 @@ function App() {
               ) : (
                 <>
                   <Route path="/faculty" element={
-                    user.email?.endsWith('@sastra.edu') ? 
+                    user.email?.endsWith('@sastra.ac.in') ? 
                       <FacultyDashboard /> : 
                       <Navigate to="/" replace />
                   } />
@@ -120,7 +138,7 @@ function App() {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </>
               )}
-            </Routes>
+            </Routes> */}
           </main>
         </div>
       </Router>
