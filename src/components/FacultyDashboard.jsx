@@ -2,13 +2,15 @@ import { useCallback, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { toast } from 'react-hot-toast'; 
 import { Plus, List } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion'; // Add AnimatePresence here
+import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import CryptoJS from 'crypto-js';
 import { format } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
-// Import components
+import emailjs from '@emailjs/browser';
+import { emailConfig } from '../config/email';
+
 import ClassList from './dashboard/ClassList';
 import QRCodeSection from './dashboard/QRCodeSection';
 import AttendanceStatus from './dashboard/AttendanceStatus';
@@ -18,7 +20,6 @@ import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 
 const FacultyDashboard = () => {
-  // ...existing state declarations...
   const [classes, setClasses] = useState(() => {
     const saved = localStorage.getItem('facultyClasses');
     return saved ? JSON.parse(saved) : [
@@ -28,7 +29,6 @@ const FacultyDashboard = () => {
   });
   const [selectedClass, setSelectedClass] = useState(null);
   const [qrValue, setQrValue] = useState('');
-  const [timeLeft, setTimeLeft] = useState(10);
   const [loading, setLoading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -37,177 +37,110 @@ const FacultyDashboard = () => {
   const [showAttendance, setShowAttendance] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
-const [showQRModal, setShowQRModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
   const [newClass, setNewClass] = useState({
     name: '',
     time: format(new Date(), 'HH:mm'),
     studentCount: 0
   });
 
-  // Save classes to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('facultyClasses', JSON.stringify(classes));
   }, [classes]);
 
-  // Enhanced delete handler with better UX
-const handleDeleteClass = useCallback((classId) => {
-  if (deleteConfirm === classId) {
-    const updatedClasses = classes.filter(c => c.id !== classId);
+  const handleDeleteClass = useCallback((classId) => {
+    if (deleteConfirm === classId) {
+      const updatedClasses = classes.filter(c => c.id !== classId);
+      setClasses(updatedClasses);
+      localStorage.setItem('facultyClasses', JSON.stringify(updatedClasses));
+      
+      if (selectedClass?.id === classId) {
+        setSelectedClass(null);
+        setShowQR(false);
+      }
+      setDeleteConfirm(null);
+      toast.success('Class deleted successfully');
+    } else {
+      setDeleteConfirm(classId);
+      toast('Click again to confirm deletion', { icon: '⚠️' });
+      setTimeout(() => setDeleteConfirm(null), 3000);
+    }
+  }, [deleteConfirm, selectedClass, classes]);
+
+  const handleAddClass = useCallback(() => {
+    if (!newClass.name.trim()) {
+      toast.error('Please enter a class name');
+      return;
+    }
+
+    const newId = Date.now();
+    const updatedClasses = [...classes, { id: newId, ...newClass }];
     setClasses(updatedClasses);
     localStorage.setItem('facultyClasses', JSON.stringify(updatedClasses));
+    toast.success('Class added successfully');
+    setNewClass({ name: '', time: format(new Date(), 'HH:mm'), studentCount: 0 });
+    setShowAddModal(false);
+  }, [newClass, classes]);
+
+  const generateQRCode = useCallback((classInfo, containerId = 'qr-code', showToast = false) => {
+    if (!classInfo) {
+      toast.error('No class selected');
+      return null;
+    }
     
-    if (selectedClass?.id === classId) {
-      setSelectedClass(null);
-      setShowQR(false);
+    setIsGeneratingQR(true);
+    
+    try {
+      const payload = {
+        classId: classInfo.id,
+        className: classInfo.name,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        timestamp: new Date().getTime(),
+        nonce: Math.random().toString(36).substring(7)
+      };
+  
+      const secretKey = 'attendance-qr-secret-key';
+      const encrypted = CryptoJS.AES.encrypt(JSON.stringify(payload), secretKey).toString();
+  
+      const element = document.getElementById(containerId);
+      if (element) {
+        try {
+          element.innerHTML = '';
+          const codeWriter = new BrowserQRCodeSvgWriter();
+          const qrSize = containerId === 'qr-code' ? 300 : 400;
+          
+          const qr = codeWriter.writeToDom(`#${containerId}`, encrypted, qrSize, qrSize);
+          setQrValue(encrypted);
+          if (showToast) {
+            toast.success('QR Code generated successfully');
+          }
+        } catch (err) {
+          console.error('QR Write Error:', err);
+          toast.error('Failed to write QR code');
+        }
+      }
+      setIsGeneratingQR(false);
+      return encrypted;
+    } catch (error) {
+      console.error('QR Generation Error:', error);
+      setIsGeneratingQR(false);
+      return null;
     }
-    setDeleteConfirm(null);
-    toast.success('Class deleted successfully', {
-      position: 'top-center',
-      style: {
-        background: '#1F2937',
-        color: '#fff',
-        borderLeft: '4px solid #10B981'
-      }
-    });
-  } else {
-    setDeleteConfirm(classId);
-    toast('Click again to confirm deletion', {
-      position: 'top-center',
-      icon: '⚠️',
-      style: {
-        background: '#1F2937',
-        color: '#fff',
-        borderLeft: '4px solid #F59E0B'
-      }
-    });
-    setTimeout(() => setDeleteConfirm(null), 3000);
-  }
-}, [deleteConfirm, selectedClass, classes]);
+  }, []);
 
-// Enhanced class addition with validation
-const handleAddClass = useCallback(() => {
-  if (!newClass.name.trim()) {
-    toast.error('Please enter a class name', {
-      position: 'top-center',
-      style: {
-        background: '#1F2937',
-        color: '#fff',
-        borderLeft: '4px solid #EF4444'
-      }
-    });
-    return;
-  }
+  const handleManualRefresh = useCallback(() => {
+    if (!selectedClass) return;
+    generateQRCode(selectedClass, 'qr-code', true);
+  }, [selectedClass, generateQRCode]);
 
-  const newId = Date.now();
-  const updatedClasses = [...classes, {
-    id: newId,
-    ...newClass
-  }];
-  
-  setClasses(updatedClasses);
-  localStorage.setItem('facultyClasses', JSON.stringify(updatedClasses));
-  
-  toast.success('Class added successfully', {
-    position: 'top-center',
-    style: {
-      background: '#1F2937',
-      color: '#fff',
-      borderLeft: '4px solid #10B981'
-    }
-  });
-
-  setNewClass({ 
-    name: '', 
-    time: format(new Date(), 'HH:mm'), 
-    studentCount: 0 
-  });
-  setShowAddModal(false);
-}, [newClass, classes]);
- // Modify the generateQRCode function
-// Update the generateQRCode function
-const generateQRCode = useCallback((classInfo, containerId = 'qr-code') => {
-  if (!classInfo) {
-    toast.error('No class selected');
-    return null;
-  }
-  
-  setIsGeneratingQR(true);
-  
-  try {
-    const payload = {
-      classId: classInfo.id,
-      className: classInfo.name,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      timestamp: new Date().getTime(),
-      nonce: Math.random().toString(36).substring(7)
-    };
-
-    const secretKey = 'attendance-qr-secret-key';
-    const encrypted = CryptoJS.AES.encrypt(
-      JSON.stringify(payload),
-      secretKey
-    ).toString();
-
-    const element = document.getElementById(containerId);
-    if (element) {
-      try {
-        element.innerHTML = '';
-        const codeWriter = new BrowserQRCodeSvgWriter();
-        const qrSize = containerId === 'qr-code' ? 300 : 400;
-        
-        // Modified QR code generation with correct hints format
-        const qr = codeWriter.writeToDom(
-          `#${containerId}`,
-          encrypted,
-          qrSize,
-          qrSize
-        );
-        
-        setQrValue(encrypted);
-        toast.success('QR Code generated successfully');
-      } catch (err) {
-        console.error('QR Write Error:', err);
-        toast.error('Failed to write QR code');
-      }
-    }
-    setIsGeneratingQR(false);
-    return encrypted;
-  } catch (error) {
-    console.error('QR Generation Error:', error);
-    setIsGeneratingQR(false);
-    return null;
-  }
-}, []);
-
-// Update the handleManualRefresh function
-const handleManualRefresh = useCallback(() => {
-  if (!selectedClass) return;
-  
-  const newQRValue = generateQRCode(selectedClass);
-  if (newQRValue) {
-    setQrValue(newQRValue);
-    setTimeLeft(10);
-    // Add single toast here
-    toast.success('QR Code refreshed', {
-      position: 'top-center',
-      style: {
-        background: '#1F2937',
-        color: '#fff',
-        borderLeft: '4px solid #10B981'
-      },
-      id: 'qr-refresh' // Add unique ID
-    });
-  }
-}, [selectedClass, generateQRCode]);
-
-  // Enhanced class selection with smooth transition
   const handleClassSelection = useCallback((cls) => {
     setLoading(true);
     setSelectedClass(cls);
     
     setTimeout(() => {
       setShowQR(false);
-      setTimeLeft(10);
       setPresentStudents([]);
       setAbsentStudents([]);
       setLoading(false);
@@ -215,7 +148,6 @@ const handleManualRefresh = useCallback(() => {
     }, 300);
   }, []);
 
-  // Enhanced file handling with progress feedback
   const readExcelFile = useCallback((file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -244,7 +176,6 @@ const handleManualRefresh = useCallback(() => {
     });
   }, []);
 
-  // Enhanced file drop handler with loading states and feedback
   const onDrop = useCallback(async (acceptedFiles) => {
     if (!selectedClass || !acceptedFiles.length) return;
     
@@ -257,7 +188,6 @@ const handleManualRefresh = useCallback(() => {
       setAbsentStudents(data);
       setPresentStudents([]);
       
-      // Update class student count
       setClasses(prev => prev.map(c => 
         c.id === selectedClass.id 
           ? { ...c, studentCount: data.length }
@@ -272,8 +202,7 @@ const handleManualRefresh = useCallback(() => {
     }
   }, [selectedClass, readExcelFile]);
 
-  // Enhanced dropzone configuration
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -285,51 +214,66 @@ const handleManualRefresh = useCallback(() => {
     }
   });
 
-  // Enhanced attendance session handlers with feedback
   const startAttendance = useCallback(() => {
     setShowQR(true);
     handleManualRefresh();
+    setTimeout(() => {
+      generateQRCode(selectedClass);
+    }, 100);
     toast.success('Attendance session started');
   }, [handleManualRefresh]);
 
   const stopAttendance = useCallback(() => {
     setShowQR(false);
-    setTimeLeft(10);
-    toast('Attendance session stopped', {
-      icon: '🛑',
-    });
+    toast('Attendance session stopped', { icon: '🛑' });
   }, []);
 
-  // Enhanced QR code auto refresh effect
-  useEffect(() => {
-    let timer;
-    if (showQR && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            handleManualRefresh();
-            return 10;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  const handleQRClick = useCallback(() => {
+    setShowQRModal(true);
+    setTimeout(() => {
+      generateQRCode(selectedClass, 'qr-code-modal',false);
+    }, 100);
+  }, [selectedClass, generateQRCode]);
+
+  const handleCloseAttendance = useCallback(async () => {
+    if (!selectedClass || !absentStudents.length) {
+      toast.error('No absent students to report');
+      return;
     }
-    return () => clearInterval(timer);
-  }, [showQR, handleManualRefresh]);
+
+    setIsSendingEmail(true);
+    try {
+      const templateParams = {
+        to_email: 'faculty@example.com', // Replace with actual faculty email
+        class_name: selectedClass.name,
+        date: format(new Date(), 'PPP'),
+        absent_count: absentStudents.length,
+        absent_list: absentStudents.join(', '),
+        total_students: selectedClass.studentCount
+      };
+
+      await emailjs.send(
+        emailConfig.serviceId,
+        emailConfig.templateId,
+        templateParams,
+        emailConfig.publicKey
+      );
+
+      toast.success('Attendance report sent successfully');
+      setShowQR(false);
+      setPresentStudents([]);
+      setAbsentStudents([]);
+    } catch (error) {
+      console.error('Email Error:', error);
+      toast.error('Failed to send attendance report');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }, [selectedClass, absentStudents]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-8 px-4">
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 2000,
-          style: {
-            background: '#1F2937',
-            color: '#fff',
-            maxWidth: '400px',
-          }
-        }}
-      />
+      <Toaster position="top-center" />
 
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
@@ -373,12 +317,13 @@ const handleManualRefresh = useCallback(() => {
                 >
                   <QRCodeSection 
                     showQR={showQR}
-                    timeLeft={timeLeft}
                     isGeneratingQR={isGeneratingQR}
                     onStartAttendance={startAttendance}
                     onStopAttendance={stopAttendance}
                     onRefresh={handleManualRefresh}
-                    onQRClick={() => setShowQRModal(true)}
+                    onQRClick={handleQRClick}
+                    onCloseAttendance={handleCloseAttendance}
+                    isSendingEmail={isSendingEmail}
                   />
                   
                   <AttendanceStatus 
@@ -414,7 +359,6 @@ const handleManualRefresh = useCallback(() => {
         isOpen={showQRModal}
         onClose={() => setShowQRModal(false)}
         onRefresh={handleManualRefresh}
-        timeLeft={timeLeft}
         isGeneratingQR={isGeneratingQR}
       />
     </div>

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@react-oauth/google": "^0.12.1",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
