@@ -235,6 +235,11 @@ const FacultyDashboard = () => {
     }, 100);
   }, [selectedClass, generateQRCode]);
 
+  const handleMarkPresent = useCallback((student) => {
+    setPresentStudents(prev => [...prev, student]);
+    setAbsentStudents(prev => prev.filter(s => s !== student));
+  }, []);
+
   const handleCloseAttendance = useCallback(async () => {
     if (!selectedClass || !absentStudents.length) {
       toast.error('No absent students to report');
@@ -270,6 +275,7 @@ const FacultyDashboard = () => {
       setIsSendingEmail(false);
     }
   }, [selectedClass, absentStudents]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-8 px-4">
@@ -333,6 +339,7 @@ const FacultyDashboard = () => {
                     onToggleView={() => setShowAttendance(!showAttendance)}
                     getRootProps={getRootProps}
                     getInputProps={getInputProps}
+                    onMarkPresent={handleMarkPresent}
                   />
                 </motion.div>
               ) : (

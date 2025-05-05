@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Send } from 'lucide-react';
+import { Eye, EyeOff, Send, RefreshCw } from 'lucide-react';
 
 const QRCodeSection = ({ 
   showQR, 
@@ -8,7 +8,8 @@ const QRCodeSection = ({
   onStartAttendance,
   onStopAttendance,
   onQRClick,
-  onCloseAttendance
+  onCloseAttendance,
+  onRefresh  // Add this prop
 }) => {
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl p-6">
@@ -72,6 +73,16 @@ const QRCodeSection = ({
                 </div>
               )}
             </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onRefresh}
+              disabled={isGeneratingQR}
+              className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center mx-auto disabled:opacity-50"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh QR Code
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

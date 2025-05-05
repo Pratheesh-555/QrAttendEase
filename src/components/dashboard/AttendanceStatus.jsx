@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserCheck, UserX, Eye, EyeOff, Upload } from 'lucide-react';
+import { UserCheck, UserX, Eye, EyeOff, Upload, Check } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const AttendanceStatus = ({ 
   showAttendance,
@@ -7,8 +8,16 @@ const AttendanceStatus = ({
   absentStudents,
   onToggleView,
   getRootProps,
-  getInputProps
+  getInputProps,
+  onMarkPresent 
 }) => {
+  const handleMarkPresent = (student) => {
+    if (window.confirm(`Mark ${student} as present?`)) {
+      onMarkPresent(student);
+      toast.success(`${student} marked as present`);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl p-6 mt-6">
       <div className="flex justify-between items-center mb-4">
@@ -31,6 +40,7 @@ const AttendanceStatus = ({
             exit={{ opacity: 0, y: -20 }}
             className="grid md:grid-cols-2 gap-4"
           >
+            {/* Present Students Section */}
             <div>
               <h3 className="font-medium text-green-400 flex items-center mb-2">
                 <UserCheck className="w-4 h-4 mr-1" />
@@ -56,6 +66,7 @@ const AttendanceStatus = ({
               </div>
             </div>
 
+            {/* Absent Students Section with New Tick Feature */}
             <div>
               <h3 className="font-medium text-red-400 flex items-center mb-2">
                 <UserX className="w-4 h-4 mr-1" />
@@ -69,9 +80,17 @@ const AttendanceStatus = ({
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="text-red-300"
+                        className="flex items-center justify-between group"
                       >
-                        {student}
+                        <span className="text-red-300">{student}</span>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleMarkPresent(student)}
+                          className="p-1 rounded-full bg-gray-600 text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-green-600 hover:text-white transition-all"
+                        >
+                          <Check className="w-4 h-4" />
+                        </motion.button>
                       </motion.li>
                     ))}
                   </ul>
