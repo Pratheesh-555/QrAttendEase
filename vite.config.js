@@ -17,8 +17,14 @@ export default defineConfig({
         entryFileNames: 'assets/[name].[hash].js',
       }
     },
-    sourcemap: true,
+    sourcemap: false, // Changed to false for production
     minify: 'terser',
+    terserOptions: {  // Added terser options
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   },
   server: {
     port: 3000,
