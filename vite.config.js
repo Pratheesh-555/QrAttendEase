@@ -5,7 +5,7 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    include: ['html5-qrcode']
   },
   build: {
     outDir: 'dist',
@@ -17,9 +17,9 @@ export default defineConfig({
         entryFileNames: 'assets/[name].[hash].js',
       }
     },
-    sourcemap: false, // Changed to false for production
+    sourcemap: false,
     minify: 'terser',
-    terserOptions: {  // Added terser options
+    terserOptions: {
       compress: {
         drop_console: true,
         drop_debugger: true
@@ -27,7 +27,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port: 5173,
     open: true
   }
 });
