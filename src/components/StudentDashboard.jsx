@@ -1,21 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Webcam from 'react-webcam';
-import { CheckCircle, XCircle, Camera, LogOut } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/library';
-import CryptoJS from 'crypto-js';
+import { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { motion } from 'framer-motion';
+import { Camera, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import CryptoJS from 'crypto-js';
+import { toast } from 'react-hot-toast';
 
 const StudentDashboard = () => {
-  const [scanned, setScanned] = useState(false);
-  const [error, setError] = useState(null);
-  const [scanResult, setScanResult] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const webcamRef = useRef(null);
-  const codeReader = useRef(null);
+  const [scanning, setScanning] = useState(false);
   const navigate = useNavigate();
+  const qrReaderRef = useRef(null);
+  const html5QrCode = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('googleToken');
@@ -47,101 +45,90 @@ const StudentDashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
-    codeReader.current = new BrowserMultiFormatReader();
-    return () => {
-      if (codeReader.current) {
-        codeReader.current.reset();
-      }
-    };
-  }, []);
+    let timeoutId;
 
-  const decryptQRData = (encryptedData) => {
-    try {
-      const decrypted = CryptoJS.AES.decrypt(
-        encryptedData,
-        'your-secret-key'
-      ).toString(CryptoJS.enc.Utf8);
-      
-      return JSON.parse(decrypted);
-    } catch (error) {
-      throw new Error('Invalid QR code');
-    }
-  };
+    const startScanner = async () => {
+      if (!qrReaderRef.current || html5QrCode.current) return;
 
-  const validateTimestamp = (timestamp) => {
-    const now = new Date().getTime();
-    const diff = now - timestamp;
-    return diff <= 35000;
-  };
+      try {
+        html5QrCode.current = new Html5Qrcode("qr-reader");
+        const cameras = await Html5Qrcode.getCameras();
+        
+        if (cameras && cameras.length) {
+          setScanning(true);
+          await html5QrCode.current.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
+            async (decodedText) => {
+              try {
+                const decrypted = CryptoJS.AES.decrypt(
+                  decodedText,
+                  'attendance-qr-secret-key'
+                ).toString(CryptoJS.enc.Utf8);
+                
+                const data = JSON.parse(decrypted);
+                const now = new Date().getTime();
+                
+                if (now - data.timestamp > 35000) {
+                  toast.error('QR code has expired');
+                  return;
+                }
 
-  const markAttendance = async (classId) => {
-    if (!userInfo) return;
+                // Mark attendance with student info
+                const attendanceData = {
+                  classId: data.classId,
+                  studentName: userInfo.name,
+                  studentEmail: userInfo.email,
+                  timestamp: now
+                };
 
-    try {
-      setIsSubmitting(true);
-      // Here you would typically make an API call to your backend
-      // to record the attendance
-      
-      // Simulating an API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setScanResult(prevResult => ({
-        ...prevResult,
-        attendanceMarked: true
-      }));
-    } catch (error) {
-      setError(error.message);
-      setScanned(false);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const startScanning = async () => {
-    if (!webcamRef.current?.video || !codeReader.current) return;
-
-    try {
-      const result = await codeReader.current.decodeFromVideoElement(webcamRef.current.video);
-      if (result) {
-        try {
-          const decryptedData = decryptQRData(result.getText());
-          
-          if (!validateTimestamp(decryptedData.timestamp)) {
-            throw new Error('QR code has expired');
-          }
-
-          setScanResult(decryptedData);
-          setScanned(true);
-          setError(null);
-          await markAttendance(decryptedData.classId);
-        } catch (e) {
-          setError(e.message);
+                // Here you would send attendanceData to your backend
+                console.log('Attendance marked:', attendanceData);
+                toast.success('Attendance marked successfully!');
+                
+                // Stop scanning after successful submission
+                await html5QrCode.current.stop();
+                setScanning(false);
+              } catch (error) {
+                console.error('QR Processing error:', error);
+                toast.error('Invalid QR code');
+              }
+            },
+            (error) => {
+              if (!error.includes("QR code not found")) {
+                console.error("QR Code scan error:", error);
+              }
+            }
+          );
+        } else {
+          toast.error("No cameras found");
         }
+      } catch (err) {
+        console.error("Camera initialization error:", err);
+        toast.error("Failed to access camera");
       }
-    } catch (error) {
-      if (!error.message.includes('No MultiFormat Readers were able to detect')) {
-        setError('Error scanning QR code: ' + error.message);
-      }
-    }
-  };
+    };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!scanned && !isSubmitting) {
-        startScanning();
+    const stopScanner = async () => {
+      if (html5QrCode.current?.isScanning) {
+        await html5QrCode.current.stop();
+        html5QrCode.current = null;
       }
-    }, 500);
+    };
+
+    // Add delay to ensure DOM is ready
+    timeoutId = setTimeout(() => {
+      startScanner();
+    }, 1000);
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(timeoutId);
+      stopScanner();
     };
-  }, [scanned, isSubmitting]);
-
-  const resetScan = () => {
-    setScanned(false);
-    setScanResult(null);
-    setError(null);
-  };
+  }, [userInfo]);
 
   const handleSignOut = () => {
     localStorage.removeItem('googleToken');
@@ -150,94 +137,70 @@ const StudentDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4">
-      {/* <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 py-6 px-4">
+      <div className="max-w-md mx-auto">
+        <div className="flex justify-between items-center mb-6">
           {userInfo?.picture && (
-            <img 
-              src={userInfo.picture} 
-              alt="Profile" 
-              className="w-12 h-12 rounded-full"
-            />
-          )}
-          <div>
-            <h2 className="text-xl font-semibold">{userInfo?.name}</h2>
-            <p className="text-gray-600">{userInfo?.email}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
-      </div> */}
-
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        {!scanned && !error && (
-          <>
-            <div className="mb-4 text-center">
-              <h2 className="text-xl font-semibold mb-2">Scan Attendance QR Code</h2>
-              <p className="text-gray-600">Position the QR code within the frame</p>
-            </div>
-            <div className="relative overflow-hidden rounded-lg">
-              <Webcam
-                ref={webcamRef}
-                className="w-full"
-                screenshotFormat="image/jpeg"
-                videoConstraints={{
-                  facingMode: 'environment',
-                }}
+            <div className="flex items-center gap-3">
+              <img 
+                src={userInfo.picture} 
+                alt="Profile" 
+                className="w-10 h-10 rounded-full"
               />
-              <div className="absolute inset-0 border-2 border-indigo-500 opacity-50"></div>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <Camera className="w-8 h-8 text-indigo-500 animate-pulse" />
+              <div className="text-white">
+                <h2 className="font-semibold">{userInfo?.name}</h2>
+                <p className="text-sm text-gray-300">{userInfo?.email}</p>
               </div>
             </div>
-          </>
-        )}
+          )}
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
 
-        {error && (
-          <div className="text-center py-8">
-            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-red-600 mb-2">Scan Error</h3>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={resetScan}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+        <motion.div 
+          className="bg-gray-800 rounded-lg shadow-xl p-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div 
+            id="qr-reader"
+            ref={qrReaderRef}
+            className="relative w-full max-w-[300px] mx-auto aspect-square rounded-lg overflow-hidden"
+          />
+          
+          {scanning && (
+            <motion.div 
+              className="mt-4 text-center text-gray-300"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
             >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {scanned && scanResult && (
-          <div className="text-center py-8">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-green-600 mb-2">
-              {isSubmitting ? 'Marking Attendance...' : 'Attendance Marked!'}
-            </h3>
-            <div className="text-gray-600">
-              <p className="font-medium">{scanResult.className}</p>
-              <p>Date: {scanResult.date}</p>
-            </div>
-            <button
-              onClick={resetScan}
-              disabled={isSubmitting}
-              className="mt-6 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-            >
-              Scan Another Code
-            </button>
-          </div>
-        )}
+              <Camera className="w-6 h-6 mx-auto animate-pulse mb-2" />
+              <p>Looking for QR Code...</p>
+              <motion.div 
+                className="h-1 bg-purple-600 mt-2 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.5,
+                  ease: "linear"
+                }}
+              />
+            </motion.div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
