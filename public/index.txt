@@ -1,2 +1,6 @@
+<<<<<<< HEAD
 hello
 
+=======
+hey mental mokham!!
+>>>>>>> 46bf8377c08d307fb0c58c5746ae05779184a554
