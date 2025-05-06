@@ -11,6 +11,7 @@ const StudentDashboard = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
   const navigate = useNavigate();
   const qrReaderRef = useRef(null);
   const html5QrCode = useRef(null);
@@ -85,13 +86,36 @@ const StudentDashboard = () => {
                   timestamp: now
                 };
 
-                // Here you would send attendanceData to your backend
-                console.log('Attendance marked:', attendanceData);
-                toast.success('Attendance marked successfully!');
-                
-                // Stop scanning after successful submission
-                await html5QrCode.current.stop();
+                // Visual feedback
+                setScanSuccess(true);
                 setScanning(false);
+
+                // Play success sound (optional)
+                try {
+                  const audio = new Audio('/success.mp3');
+                  await audio.play();
+                } catch (err) {
+                  console.log('Audio not supported');
+                }
+
+                // Show success message
+                toast.success('Attendance marked successfully!');
+
+                // Pause scanning temporarily
+                await html5QrCode.current.pause();
+
+                // Send data to backend (you'll implement this later)
+                console.log('Attendance marked:', attendanceData);
+
+                // Resume scanning after 3 seconds
+                setTimeout(async () => {
+                  if (html5QrCode.current) {
+                    setScanSuccess(false);
+                    await html5QrCode.current.resume();
+                    setScanning(true);
+                  }
+                }, 3000);
+
               } catch (error) {
                 console.error('QR Processing error:', error);
                 toast.error('Invalid QR code');
@@ -170,37 +194,61 @@ const StudentDashboard = () => {
         </div>
 
         <motion.div 
-          className="bg-gray-800 rounded-lg shadow-xl p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        className="bg-gray-800 rounded-lg shadow-xl p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="relative">
           <div 
             id="qr-reader"
             ref={qrReaderRef}
-            className="relative w-full max-w-[300px] mx-auto aspect-square rounded-lg overflow-hidden"
+            className="w-[300px] h-[300px] mx-auto rounded-lg overflow-hidden"
           />
           
-          {scanning && (
+          {scanning && !scanSuccess && (
             <motion.div 
-              className="mt-4 text-center text-gray-300"
+              className="absolute inset-0 flex items-center justify-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <Camera className="w-6 h-6 mx-auto animate-pulse mb-2" />
-              <p>Looking for QR Code...</p>
-              <motion.div 
-                className="h-1 bg-purple-600 mt-2 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: "100%" }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.5,
-                  ease: "linear"
-                }}
-              />
+              <div className="relative w-[250px] h-[250px] border-2 border-purple-500">
+                <motion.div 
+                  className="absolute left-0 right-0 h-0.5 bg-purple-500"
+                  initial={{ top: 0 }}
+                  animate={{ top: "100%" }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "linear"
+                  }}
+                />
+              </div>
             </motion.div>
           )}
-        </motion.div>
+        </div>
+
+        {scanSuccess && (
+          <motion.div 
+            className="mt-4 text-center text-green-400"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-8 h-8 mx-auto mb-2 text-green-500">✓</div>
+            <p className="text-lg mb-4">QR Code Scanned!</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                // Handle attendance submission here
+                toast.success('Attendance marked successfully!');
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Mark Present
+            </motion.button>
+          </motion.div>
+        )}
+      </motion.div>
       </div>
     </div>
   );

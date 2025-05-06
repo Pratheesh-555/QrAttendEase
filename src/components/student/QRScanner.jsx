@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Camera, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-const QRScanner = ({ onScanSuccess }) => {
+const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
   const [scanning, setScanning] = useState(false);
   const [scannedData, setScannedData] = useState(null);
 
@@ -28,9 +28,17 @@ const QRScanner = ({ onScanSuccess }) => {
               setScannedData(decodedText);
               html5QrCode.stop();
               setScanning(false);
+              // Play success sound
+              try {
+                new Audio('/success.mp3').play();
+              } catch (err) {
+                console.log('Audio not supported');
+              }
             },
             (error) => {
-              console.error("QR Code scan error:", error);
+              if (!error.includes("QR code not found")) {
+                console.error("QR Code scan error:", error);
+              }
             }
           );
         }
@@ -50,42 +58,64 @@ const QRScanner = ({ onScanSuccess }) => {
     return () => stopScanner();
   }, []);
 
-  const handleSubmit = () => {
+  const handleMarkAttendance = () => {
     if (scannedData) {
-      onScanSuccess(scannedData);
+      onScanSuccess({
+        qrData: scannedData,
+        studentName: userName,
+        studentEmail: userEmail
+      });
     }
   };
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl p-4">
-      <div id="qr-reader" className="w-full max-w-[300px] mx-auto mb-4" />
+      <div className="relative">
+        <div 
+          id="qr-reader" 
+          className="w-[300px] h-[300px] mx-auto rounded-lg overflow-hidden"
+        />
+        
+        {scanning && (
+          <motion.div 
+            className="absolute inset-0 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="relative w-[250px] h-[250px] border-2 border-purple-500">
+              {/* Animated scanning line */}
+              <motion.div 
+                className="absolute left-0 right-0 h-0.5 bg-purple-500"
+                initial={{ top: 0 }}
+                animate={{ top: "100%" }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 2,
+                  ease: "linear"
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </div>
       
-      {scanning ? (
-        <div className="text-center text-gray-300">
-          <Camera className="w-6 h-6 mx-auto animate-pulse mb-2" />
-          <p>Scanning for QR Code...</p>
-        </div>
-      ) : scannedData ? (
+      {!scanning && scannedData && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center"
+          className="text-center mt-4"
         >
           <CheckCircle className="w-8 h-8 mx-auto text-green-500 mb-2" />
-          <p className="text-green-400 mb-4">QR Code detected!</p>
+          <p className="text-green-400 mb-4">QR Code Scanned Successfully!</p>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleSubmit}
+            onClick={handleMarkAttendance}
             className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
           >
-            Submit Attendance
+            Mark Attendance
           </motion.button>
         </motion.div>
-      ) : (
-        <div className="text-center text-gray-400">
-          <p>No QR code detected</p>
-        </div>
       )}
     </div>
   );
