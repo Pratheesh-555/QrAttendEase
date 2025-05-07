@@ -1,90 +1,100 @@
-
 # 🌟 **QrAttendEase** 🌟
 
-QrAttendEase is your modern solution for attendance management, powered by QR code technology. Say goodbye to manual tracking and embrace efficiency with **QrAttendEase**!
+QrAttendEase is your modern solution for attendance management, powered by QR code technology and MongoDB Atlas.
 
 ---
 
 ## 🚀 **Features**
 
-- ✅ **QR Code-based Attendance**: Seamlessly scan QR codes to track attendance.
-- 🔄 **Real-Time Updates**: Instant synchronization of attendance data.
-- 🎨 **User-Friendly Interface**: Intuitive design crafted for effortless usability.
-- 🌐 **Cross-Platform Compatibility**: Works flawlessly across devices and browsers.
+- ✅ **QR Code-based Attendance**: Seamlessly scan QR codes to track attendance
+- 🔄 **Real-Time Updates**: Instant synchronization with MongoDB Atlas
+- 📊 **Excel Integration**: Easy student list management via Excel uploads
+- 🎨 **User-Friendly Interface**: Modern UI with Tailwind CSS
+- 🔐 **Google Authentication**: Secure login for faculty and students
 
 ---
 
 ## 🛠️ **Installation**
 
-Follow these steps to set up the project locally:
-
 1. **Clone the repository**:
-   ``` bash
-   git clone https://github.com/Pratheesh-555/QrAttendEase.git
-   ```
-
-2. **Navigate to the project directory**:
    ```bash
+   git clone https://github.com/Pratheesh-555/QrAttendEase.git
    cd QrAttendEase
    ```
 
-3. **Install dependencies**:
+2. **Install dependencies for frontend**:
    ```bash
    npm install
    ```
 
-4. **Start the development server**:
+3. **Setup server**:
    ```bash
-   npm start
+   cd server
+   npm install
+   ```
+
+4. **Configure Environment Variables**:
+   Create `.env` in root directory:
+   ```env
+   VITE_GOOGLE_CLIENT_ID=your_google_client_id
+   MONGODB_URI=your_mongodb_atlas_uri
+   ```
+
+5. **Start the application**:
+   ```bash
+   # Terminal 1 - Start frontend
+   npm run dev
+
+   # Terminal 2 - Start backend
+   cd server
+   npm run dev
    ```
 
 ---
 
-## 🎮 **Usage**
+## 💾 **Database Setup**
 
-1. Open the application in your browser.
-2. Generate or upload QR codes for attendance.
-3. Use the QR code scanner in the app to mark attendance.
-
----
-
-## 🤝 **Contributing**
-
-We welcome contributions to make **QrAttendEase** even better! 🎉  
-Please feel free to:
-
-- Open an issue for bugs or suggestions.
-- Submit a pull request for features or fixes.
-
-Steps to contribute:
-
-1. **Fork the repository**.
-2. Create a new branch:  
-   ```bash
-   git checkout -b feature-name
-   ```
-3. Commit your changes:  
-   ```bash
-   git commit -m "Add new feature"
-   ```
-4. Push to your branch and submit a pull request.
+1. Create MongoDB Atlas account
+2. Create new cluster
+3. Add connection string to `.env`
+4. Database collections:
+   - `classes`: Stores class information and student lists
+   - `attendance`: Stores attendance records
 
 ---
 
-## 📜 **License**
+## 📋 **Usage**
 
-This project is licensed under the MIT License. For more details, see the [LICENSE](LICENSE) file.
+### Faculty
+1. Login with Google
+2. Create new class
+3. Upload student list (Excel file with names)
+4. Start attendance session
+5. Share QR code with students
+
+### Students
+1. Login with Google
+2. Scan QR code
+3. Get attendance confirmation
+
+---
+
+## 🔧 **Tech Stack**
+
+- Frontend: React + Vite
+- Backend: Node.js + Express
+- Database: MongoDB Atlas
+- Authentication: Google OAuth
+- Styling: Tailwind CSS
+- QR Code: html5-qrcode
 
 ---
 
 ## 📬 **Contact**
-
-Have questions or suggestions? Reach out to us:
 
 - **Author**: [Pratheesh-555](https://github.com/Pratheesh-555)
 - **Email**: kingpk810@gmail.com
 
 ---
 
-### 🌟 **Thank you for choosing QrAttendEase! Happy coding!** 🌟
-```
+### 🌟 **Thank you for choosing QrAttendEase!** 🌟
