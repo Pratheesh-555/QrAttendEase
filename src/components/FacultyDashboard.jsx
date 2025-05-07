@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import emailjs from '@emailjs/browser';
+import axios from 'axios';
 import { emailConfig } from '../config/email';
 
 import ClassList from './dashboard/ClassList';
@@ -18,6 +19,7 @@ import AddClassModal from './dashboard/AddClassModal';
 import QRModal from './dashboard/QRModal';
 import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
+import StudentListModal from './dashboard/StudentListModal';
 
 const FacultyDashboard = () => {
   const [classes, setClasses] = useState(() => {
@@ -39,6 +41,7 @@ const FacultyDashboard = () => {
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [showStudentList, setShowStudentList] = useState(false);
 
   const [newClass, setNewClass] = useState({
     name: '',
@@ -83,6 +86,24 @@ const FacultyDashboard = () => {
     setNewClass({ name: '', time: format(new Date(), 'HH:mm'), studentCount: 0 });
     setShowAddModal(false);
   }, [newClass, classes]);
+
+  const handleViewStudents = useCallback(async (cls) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/classes/${cls.id}`);
+      if (response.data.studentList?.length) {
+        setShowStudentList(true);
+        setSelectedClass(prev => ({
+          ...prev,
+          studentList: response.data.studentList
+        }));
+      } else {
+        toast.error('No student list available. Please upload an Excel file first.');
+      }
+    } catch (error) {
+      toast.error('Failed to fetch student list');
+    }
+  }, []);
+  
 
   const generateQRCode = useCallback((classInfo, containerId = 'qr-code', showToast = false) => {
     if (!classInfo) {
@@ -148,55 +169,57 @@ const FacultyDashboard = () => {
     }, 300);
   }, []);
 
-  const readExcelFile = useCallback((file) => {
-    return new Promise((resolve, reject) => {
+  const readExcelFile = useCallback(async (file) => {
+    if (!selectedClass) {
+      toast.error('No class selected');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('classId', selectedClass.id);
+
+    try {
       const reader = new FileReader();
-      
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const studentNames = XLSX.utils.sheet_to_json(firstSheet, { header: 1 })
-            .flat()
-            .filter(name => typeof name === 'string' && name.trim() !== '');
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
           
-          if (studentNames.length === 0) {
-            reject(new Error('No valid student names found in file'));
-          } else {
-            resolve(studentNames);
-          }
+          // Extract names from first column, filter empty values
+          const studentNames = jsonData
+            .flat()
+            .filter(name => name && typeof name === 'string' && name.trim());
+
+          setSelectedClass(prev => ({
+            ...prev,
+            studentList: studentNames.map(name => ({ name }))
+          }));
+          
+          toast.success(`Uploaded ${studentNames.length} students`);
         } catch (error) {
-          reject(new Error('Failed to read Excel file'));
+          console.error('File processing error:', error);
+          toast.error('Failed to process file');
         }
       };
-      
-      reader.onerror = () => reject(new Error('File reading failed'));
+
       reader.readAsArrayBuffer(file);
-    });
-  }, []);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload student list');
+    }
+  }, [selectedClass]);
 
   const onDrop = useCallback(async (acceptedFiles) => {
     if (!selectedClass || !acceptedFiles.length) return;
     
     setLoading(true);
     try {
-      const file = acceptedFiles[0];
-      const data = await readExcelFile(file);
-      
-      setSelectedClass(prev => ({ ...prev, student_list: data }));
-      setAbsentStudents(data);
-      setPresentStudents([]);
-      
-      setClasses(prev => prev.map(c => 
-        c.id === selectedClass.id 
-          ? { ...c, studentCount: data.length }
-          : c
-      ));
-      
-      toast.success(`Loaded ${data.length} students`);
+      await readExcelFile(acceptedFiles[0]);
     } catch (error) {
-      toast.error(error.message);
+      console.error('Upload error:', error);
     } finally {
       setLoading(false);
     }
@@ -206,11 +229,13 @@ const FacultyDashboard = () => {
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
+      'application/vnd.ms-excel': ['.xls'],
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm']
     },
     multiple: false,
     onDropRejected: () => {
-      toast.error('Please upload only Excel files (.xlsx or .xls)');
+      toast.error('Please upload a valid file');
     }
   });
 
@@ -308,6 +333,7 @@ const FacultyDashboard = () => {
             onClassSelect={handleClassSelection}
             onDeleteClass={handleDeleteClass}
             deleteConfirm={deleteConfirm}
+            onViewStudents={handleViewStudents}
           />
           
           <div className="space-y-8">
@@ -368,6 +394,13 @@ const FacultyDashboard = () => {
         onRefresh={handleManualRefresh}
         isGeneratingQR={isGeneratingQR}
       />
+
+<StudentListModal 
+  isOpen={showStudentList}
+  onClose={() => setShowStudentList(false)}
+  students={selectedClass?.student_list || []}
+  className={selectedClass?.name}
+/>
     </div>
   );
 };

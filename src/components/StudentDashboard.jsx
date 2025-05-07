@@ -78,43 +78,7 @@ const StudentDashboard = () => {
                   return;
                 }
 
-                // Mark attendance with student info
-                const attendanceData = {
-                  classId: data.classId,
-                  studentName: userInfo.name,
-                  studentEmail: userInfo.email,
-                  timestamp: now
-                };
-
-                // Visual feedback
-                setScanSuccess(true);
-                setScanning(false);
-
-                // Play success sound (optional)
-                try {
-                  const audio = new Audio('/success.mp3');
-                  await audio.play();
-                } catch (err) {
-                  console.log('Audio not supported');
-                }
-
-                // Show success message
-                toast.success('Attendance marked successfully!');
-
-                // Pause scanning temporarily
-                await html5QrCode.current.pause();
-
-                // Send data to backend (you'll implement this later)
-                console.log('Attendance marked:', attendanceData);
-
-                // Resume scanning after 3 seconds
-                setTimeout(async () => {
-                  if (html5QrCode.current) {
-                    setScanSuccess(false);
-                    await html5QrCode.current.resume();
-                    setScanning(true);
-                  }
-                }, 3000);
+                await handleQRScan(decrypted);
 
               } catch (error) {
                 console.error('QR Processing error:', error);
@@ -153,6 +117,36 @@ const StudentDashboard = () => {
       stopScanner();
     };
   }, [userInfo]);
+
+  const handleQRScan = async (decodedText) => {
+    try {
+      const data = JSON.parse(decodedText);
+      
+      const response = await classApi.markAttendance(
+        data.classId,
+        userInfo.email,
+        userInfo.name
+      );
+
+      if (response.success) {
+        setScanSuccess(true);
+        setScanning(false);
+        toast.success('Attendance marked successfully!');
+        
+        // Store in localStorage for offline access
+        const attendanceHistory = JSON.parse(
+          localStorage.getItem('attendanceHistory') || '[]'
+        );
+        attendanceHistory.push({
+          classId: data.classId,
+          timestamp: new Date().getTime()
+        });
+        localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to mark attendance');
+    }
+  };
 
   const handleSignOut = () => {
     localStorage.removeItem('googleToken');
