@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import   React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GraduationCap, LogOut, User } from 'lucide-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -56,10 +56,10 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <Router>
-        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        <div className="w-full h-screen min-h-screen bg-gradient-to-b from-indigo-600 to-white flex flex-col">
           {user && (
-            <nav className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="bg-gradient-to-r from-indigo-700 to-indigo-600 text-white shadow-lg">
+              <div className="w-full px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                   <div className="flex items-center space-x-3">
                     <GraduationCap className="h-8 w-8 text-indigo-200" />
@@ -95,7 +95,7 @@ function App() {
             </nav>
           )}
 
-          <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <main className="w-full h-screen min-h-screen bg-gradient-to-b from-indigo-600 to-white flex flex-col">
           <Routes>
               {!user ? (
                 <>
@@ -107,38 +107,12 @@ function App() {
                   {/* Temporarily removed email validation for testing */}
                   <Route path="/faculty" element={<FacultyDashboard />} />
                   <Route path="/student" element={<StudentDashboard />} />
-                  
-                  {/* Default route - temporarily set to faculty for testing */}
+                  {/* Default route - redirect to dashboard based on user role if needed */}
                   <Route path="/" element={<Navigate to="/faculty" replace />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/faculty" replace />} />
                 </>
               )}
             </Routes>
-            {/* <Routes>
-              {!user ? (
-                <>
-                  <Route path="/" element={<RoleSelection />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </>
-              ) : (
-                <>
-                  <Route path="/faculty" element={
-                    user.email?.endsWith('@sastra.ac.in') ? 
-                      <FacultyDashboard /> : 
-                      <Navigate to="/" replace />
-                  } />
-                  <Route path="/student" element={
-                    user.email?.endsWith('@sastra.ac.in') ? 
-                      <StudentDashboard /> : 
-                      <Navigate to="/" replace />
-                  } />
-                  <Route path="/" element={
-                    <Navigate to={user.email?.endsWith('@sastra.edu') ? '/faculty' : '/student'} replace />
-                  } />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </>
-              )}
-            </Routes> */}
           </main>
         </div>
       </Router>

@@ -164,7 +164,7 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 py-6 px-4">
       <div className="max-w-md mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        {/* <div className="flex justify-between items-center mb-6">
           {userInfo?.picture && (
             <div className="flex items-center gap-3">
               <img 
@@ -177,15 +177,15 @@ const StudentDashboard = () => {
                 <p className="text-sm text-gray-300">{userInfo?.email}</p>
               </div>
             </div>
-          )}
-          <button
+          )} */}
+          {/* <button
             onClick={handleSignOut}
             className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>
-          </button>
-        </div>
+          </button> */}
+        {/* </div> */}
 
         <motion.div 
         className="bg-gray-800 rounded-lg shadow-xl p-4"
