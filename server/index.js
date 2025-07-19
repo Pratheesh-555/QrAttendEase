@@ -18,7 +18,7 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173' }));  // Allows frontend requests
+app.use(cors({ origin: 'https://attendeaze.netlify.app' }));  // Allows frontend requests
 app.use(express.json());
 
 // Routes
@@ -56,18 +56,25 @@ app.get('/api/attendance/:classId', (req, res) => {
 });
 
 // MongoDB Atlas connection with options
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000
-})
-.then(() => {
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 5000
+  })
+  .then(() => {
+    app.listen(process.env.PORT || 5000, () => {
+      console.log(`Server running on port ${process.env.PORT || 5000}`);
+      console.log('MongoDB Atlas connected successfully');
+    });
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
+} else {
   app.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
-    console.log('MongoDB Atlas connected successfully');
+    console.log('MongoDB URI not set, running without database.');
   });
-})
-.catch(err => {
-  console.error('MongoDB connection error:', err);
-  process.exit(1);
-});
+}
