@@ -33,6 +33,7 @@ const FacultyDashboard = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [presentStudents, setPresentStudents] = useState([]);
   const [absentStudents, setAbsentStudents] = useState([]);
+  const [studentListUploaded, setStudentListUploaded] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
@@ -193,7 +194,6 @@ const FacultyDashboard = () => {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          
           // Extract names from first column, filter empty values
           const studentNames = jsonData
             .flat()
@@ -203,14 +203,13 @@ const FacultyDashboard = () => {
             ...prev,
             studentList: studentNames.map(name => ({ name }))
           }));
-          
+          setAbsentStudents(studentNames);
           toast.success(`Uploaded ${studentNames.length} students`);
         } catch (error) {
           console.error('File processing error:', error);
           toast.error('Failed to process file');
         }
       };
-
       reader.readAsArrayBuffer(file);
     } catch (error) {
       console.error('Upload error:', error);
@@ -220,7 +219,6 @@ const FacultyDashboard = () => {
 
   const onDrop = useCallback(async (acceptedFiles) => {
     if (!selectedClass || !acceptedFiles.length) return;
-    
     setLoading(true);
     try {
       await readExcelFile(acceptedFiles[0]);
@@ -384,15 +382,16 @@ const FacultyDashboard = () => {
                     isSendingEmail={isSendingEmail}
                   />
                   
-                  <AttendanceStatus 
-                    showAttendance={showAttendance}
-                    presentStudents={presentStudents}
-                    absentStudents={absentStudents}
-                    onToggleView={() => setShowAttendance(!showAttendance)}
-                    getRootProps={getRootProps}
-                    getInputProps={getInputProps}
-                    onMarkPresent={handleMarkPresent}
-                  />
+      <AttendanceStatus 
+        showAttendance={showAttendance}
+        presentStudents={presentStudents}
+        absentStudents={absentStudents}
+        onToggleView={() => setShowAttendance(!showAttendance)}
+        getRootProps={studentListUploaded ? undefined : getRootProps}
+        getInputProps={studentListUploaded ? undefined : getInputProps}
+        onMarkPresent={handleMarkPresent}
+        studentListUploaded={studentListUploaded}
+      />
                 </motion.div>
               ) : (
                 <EmptyState 
