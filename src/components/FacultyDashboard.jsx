@@ -24,10 +24,7 @@ import StudentListModal from './dashboard/StudentListModal';
 const FacultyDashboard = () => {
   const [classes, setClasses] = useState(() => {
     const saved = localStorage.getItem('facultyClasses');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: "Web Development", time: "09:00", studentCount: 0 },
-      { id: 2, name: "Database Systems", time: "11:00", studentCount: 0 }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
   const [selectedClass, setSelectedClass] = useState(null);
   const [qrValue, setQrValue] = useState('');
@@ -50,6 +47,15 @@ const FacultyDashboard = () => {
   });
 
   useEffect(() => {
+    // Remove default classes if present in localStorage
+    const saved = localStorage.getItem('facultyClasses');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.some(c => c.name === 'Web Development' || c.name === 'Database Systems')) {
+        localStorage.setItem('facultyClasses', JSON.stringify([]));
+        setClasses([]);
+      }
+    }
     localStorage.setItem('facultyClasses', JSON.stringify(classes));
   }, [classes]);
 
