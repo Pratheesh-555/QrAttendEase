@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';  // Backend server URL
+const API_URL = 'https://attendease-yu7r.onrender.com/api';  // Backend server URL
 
 export const classApi = {
   // Upload class list
