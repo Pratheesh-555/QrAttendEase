@@ -95,7 +95,7 @@ const FacultyDashboard = () => {
 
   const handleViewStudents = useCallback(async (cls) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/classes/${cls.id}`);
+      const response = await axios.get(`https://attendease-yu7r.onrender.com/api/classes/${cls.id}`);
       if (response.data.studentList?.length) {
         setShowStudentList(true);
         setSelectedClass(prev => ({
