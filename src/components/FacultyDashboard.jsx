@@ -301,6 +301,26 @@ const FacultyDashboard = () => {
     }
   }, [selectedClass, absentStudents]);
 
+  useEffect(() => {
+    let pollInterval;
+    if (selectedClass && showQR) {
+      const fetchAttendance = async () => {
+        try {
+          const response = await classApi.getAttendanceStatus(selectedClass.id);
+          if (response.presentStudents) {
+            setPresentStudents(response.presentStudents);
+          }
+        } catch (error) {
+          console.error('Error polling attendance:', error);
+        }
+      };
+      fetchAttendance();
+      pollInterval = setInterval(fetchAttendance, 5000); // Poll every 5 seconds
+    }
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [selectedClass, showQR]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-8 px-4">

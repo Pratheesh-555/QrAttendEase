@@ -23,7 +23,37 @@ app.use(express.json());
 
 // Routes
 app.use('/api/classes', classRoutes);
-app.use('/api/attendance', attendanceRoutes);
+// In-memory attendance store for demo/testing
+const attendanceStore = {};
+
+// Start attendance for a class
+app.post('/api/attendance/start', (req, res) => {
+  const { classId } = req.body;
+  if (!classId) return res.status(400).json({ success: false, message: 'Missing classId' });
+  attendanceStore[classId] = { presentStudents: [] };
+  res.json({ success: true });
+});
+
+// Mark student attendance
+app.post('/api/attendance/mark', (req, res) => {
+  const { classId, studentEmail, studentName } = req.body;
+  if (!classId || !studentEmail || !studentName) {
+    return res.status(400).json({ success: false, message: 'Missing data' });
+  }
+  if (!attendanceStore[classId]) attendanceStore[classId] = { presentStudents: [] };
+  // Prevent duplicates
+  if (!attendanceStore[classId].presentStudents.some(s => s.studentEmail === studentEmail)) {
+    attendanceStore[classId].presentStudents.push({ studentEmail, studentName });
+  }
+  res.json({ success: true });
+});
+
+// Get attendance status
+app.get('/api/attendance/:classId', (req, res) => {
+  const { classId } = req.params;
+  const presentStudents = attendanceStore[classId]?.presentStudents || [];
+  res.json({ presentStudents });
+});
 
 // MongoDB Atlas connection with options
 mongoose.connect(process.env.MONGODB_URI, {
