@@ -8,6 +8,7 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
   const [scanning, setScanning] = useState(false);
   const [scannedData, setScannedData] = useState(null);
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [canSubmit, setCanSubmit] = useState(false);
 
   useEffect(() => {
     let html5QrCode;
@@ -18,7 +19,6 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
         const cameras = await Html5Qrcode.getCameras();
         if (cameras && cameras.length) {
           setScanning(true);
-          setCameraStarted(true);
           await html5QrCode.start(
             { facingMode: "environment" },
             {
@@ -27,6 +27,7 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
             },
             (decodedText) => {
               setScannedData(decodedText);
+              setCanSubmit(true);
               html5QrCode.stop();
               setScanning(false);
               // Play success sound
@@ -61,6 +62,7 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
 
   const handleOpenCamera = () => {
     setCameraStarted(true);
+    setCanSubmit(false);
   };
 
   const handleMarkAttendance = () => {
@@ -80,17 +82,16 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
           id="qr-reader" 
           className="w-full max-w-xs h-[60vw] max-h-[350px] mx-auto rounded-lg overflow-hidden"
         />
-        {!cameraStarted && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleOpenCamera}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg mt-4"
-          >
-            <Camera className="w-5 h-5 inline-block mr-2" />
-            Open Camera
-          </motion.button>
-        )}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleOpenCamera}
+          className={`bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg mt-4 ${cameraStarted ? 'opacity-50 pointer-events-none' : ''}`}
+          disabled={cameraStarted}
+        >
+          <Camera className="w-5 h-5 inline-block mr-2" />
+          Open Camera
+        </motion.button>
         {scanning && (
           <motion.div 
             className="absolute inset-0 flex items-center justify-center"
@@ -114,6 +115,15 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
         )}
       </div>
       <div className="text-center mt-4">
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleMarkAttendance}
+          className={`bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors ${!canSubmit ? 'opacity-50 pointer-events-none' : ''}`}
+          disabled={!canSubmit}
+        >
+          Submit Attendance
+        </motion.button>
         {scannedData && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -121,25 +131,8 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
           >
             <CheckCircle className="w-8 h-8 mx-auto text-green-500 mb-2" />
             <p className="text-green-400 mb-4">QR Code Scanned Successfully!</p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleMarkAttendance}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Submit Attendance
-            </motion.button>
           </motion.div>
         )}
-        {/* Always show fallback submit button for manual testing */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleMarkAttendance}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg mt-2"
-        >
-          Submit (Manual)
-        </motion.button>
       </div>
     </div>
   );
