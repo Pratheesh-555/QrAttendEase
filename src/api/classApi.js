@@ -33,10 +33,16 @@ export const classApi = {
         studentEmail,
         studentName
       });
+      if (response.data && response.data.error === 'Already marked') {
+        return { success: false, message: 'Attendance already marked for this student.' };
+      }
       return response.data;
     } catch (error) {
+      if (error.response && error.response.data && error.response.data.message) {
+        return { success: false, message: error.response.data.message };
+      }
       console.error('Error marking attendance:', error);
-      throw error;
+      return { success: false, message: 'Failed to mark attendance.' };
     }
   },
 

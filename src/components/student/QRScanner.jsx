@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { motion } from 'framer-motion';
 import { Camera, CheckCircle } from 'lucide-react';
@@ -9,17 +10,19 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
   const [scannedData, setScannedData] = useState(null);
   const [cameraStarted, setCameraStarted] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const html5QrCodeRef = useRef(null);
 
   useEffect(() => {
     let html5QrCode;
 
     const startScanner = async () => {
       try {
-        html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
         const cameras = await Html5Qrcode.getCameras();
         if (cameras && cameras.length) {
           setScanning(true);
-          await html5QrCode.start(
+          await html5QrCodeRef.current.start(
             { facingMode: "environment" },
             {
               fps: 10,
@@ -28,31 +31,36 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
             (decodedText) => {
               setScannedData(decodedText);
               setCanSubmit(true);
-              html5QrCode.stop();
+              html5QrCodeRef.current.stop();
               setScanning(false);
-              // Play success sound
+              setErrorMsg("");
               try {
                 new Audio('/success.mp3').play();
               } catch (err) {
-                console.log('Audio not supported');
+                // ignore audio error
               }
             },
             (error) => {
               if (!error.includes("QR code not found")) {
-                console.error("QR Code scan error:", error);
+                setErrorMsg("QR Code scan error: " + error);
+                toast.error("QR Code scan error");
               }
             }
           );
+        } else {
+          setErrorMsg("No cameras found");
+          toast.error("No cameras found");
         }
       } catch (err) {
-        console.error("Camera access error:", err);
+        setErrorMsg("Camera access error");
         toast.error("Failed to access camera");
       }
     };
 
     const stopScanner = () => {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(console.error);
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(() => {});
+        html5QrCodeRef.current = null;
       }
     };
 
@@ -63,15 +71,25 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
   const handleOpenCamera = () => {
     setCameraStarted(true);
     setCanSubmit(false);
+    setErrorMsg("");
+    setScannedData(null);
   };
 
   const handleMarkAttendance = () => {
-    if (scannedData) {
+    if (canSubmit && scannedData) {
       onScanSuccess({
         qrData: scannedData,
         studentName: userName,
         studentEmail: userEmail
       });
+      setCanSubmit(false);
+      setScannedData(null);
+      setCameraStarted(false);
+      setErrorMsg("");
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().catch(() => {});
+        html5QrCodeRef.current = null;
+      }
     }
   };
 
@@ -124,6 +142,9 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
         >
           Submit Attendance
         </motion.button>
+        {errorMsg && (
+          <div className="mt-2 text-red-400">{errorMsg}</div>
+        )}
         {scannedData && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

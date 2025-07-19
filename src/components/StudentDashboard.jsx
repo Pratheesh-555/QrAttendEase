@@ -12,6 +12,9 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [cameraStarted, setCameraStarted] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [presentees, setPresentees] = useState([]);
   const navigate = useNavigate();
   const qrReaderRef = useRef(null);
   const html5QrCode = useRef(null);
@@ -50,18 +53,16 @@ const StudentDashboard = () => {
 
     const startScanner = async () => {
       if (!qrReaderRef.current || html5QrCode.current) return;
-
       try {
         html5QrCode.current = new Html5Qrcode("qr-reader");
         const cameras = await Html5Qrcode.getCameras();
-        
         if (cameras && cameras.length) {
           setScanning(true);
           await html5QrCode.current.start(
             { facingMode: "environment" },
             {
               fps: 10,
-              qrbox: { width: 250, height: 250 },
+              qrbox: { width: window.innerWidth < 500 ? 200 : 300, height: window.innerWidth < 500 ? 200 : 300 },
             },
             async (decodedText) => {
               try {
@@ -69,17 +70,16 @@ const StudentDashboard = () => {
                   decodedText,
                   'attendance-qr-secret-key'
                 ).toString(CryptoJS.enc.Utf8);
-                
                 const data = JSON.parse(decrypted);
                 const now = new Date().getTime();
-                
                 if (now - data.timestamp > 35000) {
                   toast.error('QR code has expired');
                   return;
                 }
-
-                await handleQRScan(decrypted);
-
+                setQrData(decrypted);
+                setScanSuccess(true);
+                setScanning(false);
+                toast.success('QR code scanned! Now submit to mark attendance.');
               } catch (error) {
                 console.error('QR Processing error:', error);
                 toast.error('Invalid QR code');
@@ -107,32 +107,32 @@ const StudentDashboard = () => {
       }
     };
 
-    // Add delay to ensure DOM is ready
-    timeoutId = setTimeout(() => {
-      startScanner();
-    }, 1000);
+    if (cameraStarted) {
+      timeoutId = setTimeout(() => {
+        startScanner();
+      }, 500);
+    }
 
     return () => {
       clearTimeout(timeoutId);
       stopScanner();
     };
-  }, [userInfo]);
+  }, [userInfo, cameraStarted]);
+  const handleOpenCamera = () => {
+    setCameraStarted(true);
+  };
 
-  const handleQRScan = async (decodedText) => {
+  const handleMarkPresent = async () => {
+    if (!qrData) return;
     try {
-      const data = JSON.parse(decodedText);
-      
+      const data = JSON.parse(qrData);
       const response = await classApi.markAttendance(
         data.classId,
         userInfo.email,
         userInfo.name
       );
-
       if (response.success) {
-        setScanSuccess(true);
-        setScanning(false);
         toast.success('Attendance marked successfully!');
-        
         // Store in localStorage for offline access
         const attendanceHistory = JSON.parse(
           localStorage.getItem('attendanceHistory') || '[]'
@@ -142,6 +142,10 @@ const StudentDashboard = () => {
           timestamp: new Date().getTime()
         });
         localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
+        // Update presentee list
+        setPresentees((prev) => [...prev, userInfo.name]);
+        setScanSuccess(false);
+        setQrData(null);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark attendance');
@@ -192,20 +196,29 @@ const StudentDashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="relative">
+        <div className="relative flex flex-col items-center">
           <div 
             id="qr-reader"
             ref={qrReaderRef}
-            className="w-[300px] h-[300px] mx-auto rounded-lg overflow-hidden"
+            className="w-full max-w-xs h-[60vw] max-h-[350px] mx-auto rounded-lg overflow-hidden"
           />
-          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleOpenCamera}
+            className={`bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg mt-4 ${cameraStarted ? 'opacity-50 pointer-events-none' : ''}`}
+            disabled={cameraStarted}
+          >
+            <Camera className="w-5 h-5 inline-block mr-2" />
+            Open Camera
+          </motion.button>
           {scanning && !scanSuccess && (
             <motion.div 
               className="absolute inset-0 flex items-center justify-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <div className="relative w-[250px] h-[250px] border-2 border-purple-500">
+              <div className="relative w-full max-w-xs h-[60vw] max-h-[350px] border-2 border-purple-500">
                 <motion.div 
                   className="absolute left-0 right-0 h-0.5 bg-purple-500"
                   initial={{ top: 0 }}
@@ -220,28 +233,37 @@ const StudentDashboard = () => {
             </motion.div>
           )}
         </div>
-
-        {scanSuccess && (
-          <motion.div 
-            className="mt-4 text-center text-green-400"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+        <div className="text-center mt-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleMarkPresent}
+            className={`bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors ${!scanSuccess ? 'opacity-50 pointer-events-none' : ''}`}
+            disabled={!scanSuccess}
           >
-            <div className="w-8 h-8 mx-auto mb-2 text-green-500">✓</div>
-            <p className="text-lg mb-4">QR Code Scanned!</p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                // Handle attendance submission here
-                toast.success('Attendance marked successfully!');
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors"
+            Mark Present
+          </motion.button>
+          {scanSuccess && (
+            <motion.div 
+              className="mt-4 text-center text-green-400"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              Mark Present
-            </motion.button>
-          </motion.div>
-        )}
+              <div className="w-8 h-8 mx-auto mb-2 text-green-500">✓</div>
+              <p className="text-lg mb-4">QR Code Scanned! Click submit to mark attendance.</p>
+            </motion.div>
+          )}
+          {presentees.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-white font-semibold mb-2">Presentees:</h3>
+              <ul className="text-green-300">
+                {presentees.map((name, idx) => (
+                  <li key={idx}>{name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </motion.div>
       </div>
     </div>
