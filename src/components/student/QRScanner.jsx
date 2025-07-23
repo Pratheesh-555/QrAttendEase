@@ -25,7 +25,7 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
           await html5QrCodeRef.current.start(
             { facingMode: "environment" },
             {
-              fps: 10,
+              fps: 60,
               qrbox: { width: window.innerWidth < 500 ? 200 : 300, height: window.innerWidth < 500 ? 200 : 300 },
             },
             (decodedText) => {
@@ -77,6 +77,11 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
 
   const handleMarkAttendance = () => {
     if (canSubmit && scannedData) {
+      alert("Sending this data:\n" + JSON.stringify({
+  qrData: scannedData,
+  studentName: userName,
+  studentEmail: userEmail
+}));
       onScanSuccess({
         qrData: scannedData,
         studentName: userName,

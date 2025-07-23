@@ -72,7 +72,7 @@ const StudentDashboard = () => {
                 ).toString(CryptoJS.enc.Utf8);
                 const data = JSON.parse(decrypted);
                 const now = new Date().getTime();
-                if (now - data.timestamp > 35000) {
+                if (now - data.timestamp > 30000) {
                   toast.error('QR code has expired');
                   return;
                 }
@@ -124,8 +124,9 @@ const StudentDashboard = () => {
 
   const handleMarkPresent = async () => {
     if (!qrData) return;
+    alert("Scanned: " + JSON.stringify(qrData));
     try {
-      const data = JSON.parse(qrData);
+      const data = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
       const response = await classApi.markAttendance(
         data.classId,
         userInfo.email,
