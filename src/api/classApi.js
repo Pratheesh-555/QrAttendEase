@@ -5,7 +5,7 @@ const API_URL = 'https://attendease-yu7r.onrender.com/api';  // Backend server U
 export const classApi = {
   // Upload class list
   uploadClass: async (teacherEmail, className, students) => {
-    const response = await axios.post(`${API_URL}/classes`, {
+    const response = await axios.post(`${API_URL}/api/classes`, {
       teacherEmail,
       className,
       students
@@ -15,20 +15,20 @@ export const classApi = {
 
   // Get teacher's classes
   getClasses: async (teacherEmail) => {
-    const response = await axios.get(`${API_URL}/classes/${teacherEmail}`);
+    const response = await axios.get(`${API_URL}/api/classes/${teacherEmail}`);
     return response.data;
   },
 
   // Start attendance for a class
   startAttendance: async (classId) => {
-    const response = await axios.post(`${API_URL}/attendance/start`, { classId });
+    const response = await axios.post(`${API_URL}/api/attendance/start`, { classId });
     return response.data;
   },
 
   // Mark student attendance
   markAttendance: async (classId, studentEmail, studentName) => {
     try {
-      const response = await axios.post(`${API_URL}/attendance/mark`, {
+      const response = await axios.post(`${API_URL}/api/attendance/mark`, {
         classId,
         studentEmail,
         studentName
@@ -49,7 +49,7 @@ export const classApi = {
   // Get attendance status
   getAttendanceStatus: async (classId) => {
     try {
-      const response = await axios.get(`${API_URL}/attendance/${classId}`);
+      const response = await axios.get(`${API_URL}/api/attendance/${classId}`);
       return response.data;
     } catch (error) {
       console.error('Error getting attendance status:', error);
@@ -65,7 +65,7 @@ export const classApi = {
     formData.append('className', className);
 
     const response = await axios.post(
-      `${API_URL}/classes/upload-students`,
+      `${API_URL}/api/classes/upload-students`,
       formData,
       {
         headers: {

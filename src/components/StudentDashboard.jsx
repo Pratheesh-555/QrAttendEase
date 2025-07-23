@@ -128,7 +128,7 @@ const StudentDashboard = () => {
     try {
       const data = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
       const response = await classApi.markAttendance(
-        data.classId,
+        data.classld,
         userInfo.email,
         userInfo.name
       );
