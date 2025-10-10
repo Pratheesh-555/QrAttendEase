@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import { toast } from 'react-hot-toast';
+import { classApi } from '../api/classApi';
 
 const StudentDashboard = () => {
   const [userInfo, setUserInfo] = useState(null);
@@ -123,17 +124,30 @@ const StudentDashboard = () => {
   };
 
   const handleMarkPresent = async () => {
-    if (!qrData) return;
-    alert("Scanned: " + JSON.stringify(qrData));
+    if (!qrData) {
+      toast.error('No QR data available');
+      return;
+    }
+   
     try {
       const data = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
+      
+      if (!data.classId) {
+        toast.error('Invalid QR code - missing class ID');
+        return;
+      }
+      
+      console.log('Marking attendance for:', { classId: data.classId, email: userInfo.email, name: userInfo.name });
+      
       const response = await classApi.markAttendance(
-        data.classld,
+        data.classId,
         userInfo.email,
         userInfo.name
       );
+      
       if (response.success) {
         toast.success('Attendance marked successfully!');
+        
         // Store in localStorage for offline access
         const attendanceHistory = JSON.parse(
           localStorage.getItem('attendanceHistory') || '[]'
@@ -143,13 +157,24 @@ const StudentDashboard = () => {
           timestamp: new Date().getTime()
         });
         localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
+        
         // Update presentee list
         setPresentees((prev) => [...prev, userInfo.name]);
         setScanSuccess(false);
         setQrData(null);
+        
+        // Stop camera after successful submission
+        if (html5QrCode.current?.isScanning) {
+          await html5QrCode.current.stop();
+          html5QrCode.current = null;
+        }
+        setCameraStarted(false);
+      } else {
+        toast.error(response.message || 'Failed to mark attendance');
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to mark attendance');
+      console.error('Error marking attendance:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to mark attendance');
     }
   };
 

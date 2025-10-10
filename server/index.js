@@ -18,7 +18,24 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 
 // Middleware
-app.use(cors({ origin: 'https://attendeaze.netlify.app' }));  // Allows frontend requests
+const allowedOrigins = [
+  'https://attendeaze.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+app.use(cors({ 
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
@@ -40,12 +57,34 @@ app.post('/api/attendance/mark', (req, res) => {
   if (!classId || !studentEmail || !studentName) {
     return res.status(400).json({ success: false, message: 'Missing data' });
   }
-  if (!attendanceStore[classId]) attendanceStore[classId] = { presentStudents: [] };
-  // Prevent duplicates
-  if (!attendanceStore[classId].presentStudents.some(s => s.studentEmail === studentEmail)) {
-    attendanceStore[classId].presentStudents.push({ studentEmail, studentName });
+  
+  if (!attendanceStore[classId]) {
+    attendanceStore[classId] = { presentStudents: [] };
   }
-  res.json({ success: true });
+  
+  // Check for duplicate
+  const isDuplicate = attendanceStore[classId].presentStudents.some(
+    s => s.studentEmail === studentEmail
+  );
+  
+  if (isDuplicate) {
+    return res.json({ 
+      success: false, 
+      message: 'Attendance already marked for this student',
+      presentStudents: attendanceStore[classId].presentStudents 
+    });
+  }
+  
+  // Add student to present list
+  attendanceStore[classId].presentStudents.push({ studentEmail, studentName });
+  
+  console.log(`Attendance marked for ${studentName} (${studentEmail}) in class ${classId}`);
+  
+  res.json({ 
+    success: true, 
+    message: 'Attendance marked successfully',
+    presentStudents: attendanceStore[classId].presentStudents 
+  });
 });
 
 // Get attendance status
