@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import emailjs from '@emailjs/browser';
 import axios from 'axios';
 import { emailConfig } from '../config/email';
+import { classApi } from '../api/classApi';
 
 import ClassList from './dashboard/ClassList';
 import QRCodeSection from './dashboard/QRCodeSection';
@@ -327,15 +328,15 @@ const FacultyDashboard = () => {
   }, [selectedClass, showQR]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-4 sm:py-8 px-4">
       <Toaster position="top-center" />
 
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
           <motion.h1 
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            className="text-3xl font-bold text-purple-400"
+            className="text-2xl sm:text-3xl font-bold text-purple-400"
           >
             Faculty Dashboard
           </motion.h1>
@@ -343,14 +344,14 @@ const FacultyDashboard = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAddModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center w-full sm:w-auto justify-center text-sm sm:text-base"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Class
           </motion.button>
         </div>
         
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
           <ClassList 
             classes={classes}
             selectedClass={selectedClass}
@@ -360,7 +361,7 @@ const FacultyDashboard = () => {
             onViewStudents={handleViewStudents}
           />
           
-          <div className="space-y-8">
+          <div className="space-y-4 sm:space-y-6">
             <AnimatePresence mode="wait">
               {loading ? (
                 <LoadingSpinner size="lg" color="purple" />
@@ -370,6 +371,7 @@ const FacultyDashboard = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
+                  className="space-y-4 sm:space-y-6"
                 >
                   <QRCodeSection 
                     showQR={showQR}
@@ -382,16 +384,16 @@ const FacultyDashboard = () => {
                     isSendingEmail={isSendingEmail}
                   />
                   
-      <AttendanceStatus 
-        showAttendance={showAttendance}
-        presentStudents={presentStudents}
-        absentStudents={absentStudents}
-        onToggleView={() => setShowAttendance(!showAttendance)}
-        getRootProps={studentListUploaded ? undefined : getRootProps}
-        getInputProps={studentListUploaded ? undefined : getInputProps}
-        onMarkPresent={handleMarkPresent}
-        studentListUploaded={studentListUploaded}
-      />
+                  <AttendanceStatus 
+                    showAttendance={showAttendance}
+                    presentStudents={presentStudents}
+                    absentStudents={absentStudents}
+                    onToggleView={() => setShowAttendance(!showAttendance)}
+                    getRootProps={studentListUploaded ? undefined : getRootProps}
+                    getInputProps={studentListUploaded ? undefined : getInputProps}
+                    onMarkPresent={handleMarkPresent}
+                    studentListUploaded={studentListUploaded}
+                  />
                 </motion.div>
               ) : (
                 <EmptyState 
@@ -420,12 +422,12 @@ const FacultyDashboard = () => {
         isGeneratingQR={isGeneratingQR}
       />
 
-<StudentListModal 
-  isOpen={showStudentList}
-  onClose={() => setShowStudentList(false)}
-  students={selectedClass?.student_list || []}
-  className={selectedClass?.name}
-/>
+      <StudentListModal 
+        isOpen={showStudentList}
+        onClose={() => setShowStudentList(false)}
+        students={selectedClass?.student_list || []}
+        className={selectedClass?.name}
+      />
     </div>
   );
 };

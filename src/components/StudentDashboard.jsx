@@ -192,105 +192,129 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 py-6 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 py-4 sm:py-6 px-4">
       <div className="max-w-md mx-auto">
-        {/* <div className="flex justify-between items-center mb-6">
+        {/* User Info Section */}
+        <div className="flex justify-between items-center mb-4 sm:mb-6 bg-gray-800 rounded-lg p-3 sm:p-4">
           {userInfo?.picture && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <img 
                 src={userInfo.picture} 
                 alt="Profile" 
-                className="w-10 h-10 rounded-full"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-purple-500"
               />
               <div className="text-white">
-                <h2 className="font-semibold">{userInfo?.name}</h2>
-                <p className="text-sm text-gray-300">{userInfo?.email}</p>
+                <h2 className="font-semibold text-sm sm:text-base">{userInfo?.name}</h2>
+                <p className="text-xs sm:text-sm text-gray-300 truncate max-w-[150px] sm:max-w-[200px]">{userInfo?.email}</p>
               </div>
             </div>
-          )} */}
-          {/* <button
+          )}
+          <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs sm:text-sm transition-colors"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>Sign Out</span>
-          </button> */}
-        {/* </div> */}
+          </button>
+        </div>
 
         <motion.div 
-        className="bg-gray-800 rounded-lg shadow-xl p-4"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="relative flex flex-col items-center">
-          <div 
-            id="qr-reader"
-            ref={qrReaderRef}
-            className="w-full max-w-xs h-[60vw] max-h-[350px] mx-auto rounded-lg overflow-hidden"
-          />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleOpenCamera}
-            className={`bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg mt-4 ${cameraStarted ? 'opacity-50 pointer-events-none' : ''}`}
-            disabled={cameraStarted}
-          >
-            <Camera className="w-5 h-5 inline-block mr-2" />
-            Open Camera
-          </motion.button>
-          {scanning && !scanSuccess && (
-            <motion.div 
-              className="absolute inset-0 flex items-center justify-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+          className="bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 mb-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h2 className="text-lg sm:text-xl font-semibold text-purple-300 mb-4 text-center">Scan QR Code</h2>
+          
+          <div className="relative flex flex-col items-center">
+            <div 
+              id="qr-reader"
+              ref={qrReaderRef}
+              className="w-full max-w-[280px] sm:max-w-xs h-[280px] sm:h-[60vw] sm:max-h-[350px] mx-auto rounded-lg overflow-hidden bg-gray-700"
+            />
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleOpenCamera}
+              className={`w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg mt-4 ${cameraStarted ? 'opacity-50 pointer-events-none' : ''} text-sm sm:text-base font-medium transition-all`}
+              disabled={cameraStarted}
             >
-              <div className="relative w-full max-w-xs h-[60vw] max-h-[350px] border-2 border-purple-500">
-                <motion.div 
-                  className="absolute left-0 right-0 h-0.5 bg-purple-500"
-                  initial={{ top: 0 }}
-                  animate={{ top: "100%" }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 2,
-                    ease: "linear"
-                  }}
-                />
-              </div>
-            </motion.div>
-          )}
-        </div>
-        <div className="text-center mt-4">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleMarkPresent}
-            className={`bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors ${!scanSuccess ? 'opacity-50 pointer-events-none' : ''}`}
-            disabled={!scanSuccess}
-          >
-            Mark Present
-          </motion.button>
-          {scanSuccess && (
-            <motion.div 
-              className="mt-4 text-center text-green-400"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5 inline-block mr-2" />
+              {cameraStarted ? 'Camera Active' : 'Open Camera'}
+            </motion.button>
+            
+            {scanning && !scanSuccess && (
+              <motion.div 
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="relative w-full max-w-[280px] sm:max-w-xs h-[280px] sm:h-[60vw] sm:max-h-[350px] border-2 border-purple-500 rounded-lg">
+                  <motion.div 
+                    className="absolute left-0 right-0 h-0.5 bg-purple-500"
+                    initial={{ top: 0 }}
+                    animate={{ top: "100%" }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 2,
+                      ease: "linear"
+                    }}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </div>
+          
+          <div className="text-center mt-4">
+            {scanSuccess && (
+              <motion.div 
+                className="mb-4 text-center text-green-400"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-2 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-2xl sm:text-3xl">✓</span>
+                </div>
+                <p className="text-base sm:text-lg font-medium mb-1">QR Code Scanned!</p>
+                <p className="text-xs sm:text-sm text-gray-400">Click submit to mark your attendance</p>
+              </motion.div>
+            )}
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleMarkPresent}
+              className={`w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg transition-colors text-sm sm:text-base font-medium ${!scanSuccess ? 'opacity-50 pointer-events-none' : ''}`}
+              disabled={!scanSuccess}
             >
-              <div className="w-8 h-8 mx-auto mb-2 text-green-500">✓</div>
-              <p className="text-lg mb-4">QR Code Scanned! Click submit to mark attendance.</p>
-            </motion.div>
-          )}
-          {presentees.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-white font-semibold mb-2">Presentees:</h3>
-              <ul className="text-green-300">
-                {presentees.map((name, idx) => (
-                  <li key={idx}>{name}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </motion.div>
+              Mark Present
+            </motion.button>
+          </div>
+        </motion.div>
+
+        {presentees.length > 0 && (
+          <motion.div 
+            className="bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-3 flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+              Present Today
+            </h3>
+            <ul className="space-y-2">
+              {presentees.map((name, idx) => (
+                <li 
+                  key={idx} 
+                  className="text-green-300 bg-gray-700 px-3 sm:px-4 py-2 rounded-lg flex items-center text-sm sm:text-base"
+                >
+                  <span className="text-green-500 mr-2">✓</span>
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
       </div>
     </div>
   );

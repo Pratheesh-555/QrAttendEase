@@ -9,22 +9,22 @@ const QRCodeSection = ({
   onStopAttendance,
   onQRClick,
   onCloseAttendance,
-  onRefresh  // Add this prop
+  onRefresh
 }) => {
   return (
-    <div className="bg-gray-800 rounded-lg shadow-xl p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-purple-300">Attendance QR Code</h2>
-        <div className="flex gap-2">
+    <div className="bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-purple-300">Attendance QR Code</h2>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onCloseAttendance}
             disabled={!showQR || isSendingEmail}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center disabled:opacity-50 text-sm sm:text-base flex-1 sm:flex-initial justify-center"
           >
             <Send className="w-4 h-4 mr-2" />
-            {isSendingEmail ? 'Sending...' : 'Close Attendance'}
+            {isSendingEmail ? 'Sending...' : 'Close'}
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -34,17 +34,17 @@ const QRCodeSection = ({
               showQR 
                 ? 'bg-red-600 hover:bg-red-700' 
                 : 'bg-green-600 hover:bg-green-700'
-            } text-white px-4 py-2 rounded-lg transition-colors flex items-center`}
+            } text-white px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center text-sm sm:text-base flex-1 sm:flex-initial justify-center`}
           >
             {showQR ? (
               <>
                 <EyeOff className="w-4 h-4 mr-2" />
-                Stop Attendance
+                Stop
               </>
             ) : (
               <>
                 <Eye className="w-4 h-4 mr-2" />
-                Start Attendance
+                Start
               </>
             )}
           </motion.button>
@@ -54,18 +54,19 @@ const QRCodeSection = ({
       <AnimatePresence mode="wait">
         {showQR && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="text-center"
+            initial={{ opacity: 0, scale: 0.9, height: 0 }}
+            animate={{ opacity: 1, scale: 1, height: 'auto' }}
+            exit={{ opacity: 0, scale: 0.9, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center overflow-hidden"
           >
             <div 
-              className="bg-white p-6 rounded-lg inline-block relative cursor-pointer hover:shadow-lg transition-shadow"
+              className="bg-white p-4 sm:p-6 rounded-lg relative cursor-pointer hover:shadow-lg transition-shadow"
               onClick={onQRClick}
             >
               <div 
                 id="qr-code" 
-                className="mx-auto flex items-center justify-center min-h-[300px] min-w-[300px]"
+                className="flex items-center justify-center w-[250px] h-[250px] sm:w-[300px] sm:h-[300px]"
               />
               {isGeneratingQR && (
                 <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
@@ -78,7 +79,7 @@ const QRCodeSection = ({
               whileTap={{ scale: 0.95 }}
               onClick={onRefresh}
               disabled={isGeneratingQR}
-              className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center mx-auto disabled:opacity-50"
+              className="mt-4 mb-2 bg-purple-600 hover:bg-purple-700 text-white px-4 sm:px-6 py-2 rounded-lg transition-colors flex items-center disabled:opacity-50 text-sm sm:text-base"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh QR Code
