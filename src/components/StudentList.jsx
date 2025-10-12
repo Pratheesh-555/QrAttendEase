@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { classApi } from '../api/classApi';
 
 const StudentList = ({ classId }) => {

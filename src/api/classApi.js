@@ -21,8 +21,13 @@ export const classApi = {
 
   // Start attendance for a class
   startAttendance: async (classId) => {
-    const response = await axios.post(`${API_URL}/attendance/start`, { classId });
-    return response.data;
+    try {
+      const response = await axios.post(`${API_URL}/attendance/start`, { classId });
+      return response.data;
+    } catch (error) {
+      console.error('Error starting attendance:', error);
+      throw error;
+    }
   },
 
   // Mark student attendance

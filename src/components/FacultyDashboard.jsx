@@ -138,13 +138,18 @@ const FacultyDashboard = () => {
         try {
           element.innerHTML = '';
           const codeWriter = new BrowserQRCodeSvgWriter();
-          const qrSize = containerId === 'qr-code' ? 300 : 400;
+          const qrSize = containerId === 'qr-code' ? 300 : 500;
           
-          const qr = codeWriter.writeToDom(`#${containerId}`, encrypted, qrSize, qrSize);
+          // Generate QR code with better error correction
+          const svg = codeWriter.write(encrypted, qrSize, qrSize);
+          element.appendChild(svg);
+          
           setQrValue(encrypted);
           if (showToast) {
             toast.success('QR Code generated successfully');
           }
+          
+          console.log('QR Code generated for class:', classInfo.name, 'Size:', qrSize);
         } catch (err) {
           console.error('QR Write Error:', err);
           toast.error('Failed to write QR code');
@@ -155,6 +160,7 @@ const FacultyDashboard = () => {
     } catch (error) {
       console.error('QR Generation Error:', error);
       setIsGeneratingQR(false);
+      toast.error('Failed to generate QR code');
       return null;
     }
   }, []);
@@ -244,14 +250,30 @@ const FacultyDashboard = () => {
     }
   });
 
-  const startAttendance = useCallback(() => {
-    setShowQR(true);
-    handleManualRefresh();
-    setTimeout(() => {
-      generateQRCode(selectedClass);
-    }, 100);
-    toast.success('Attendance session started');
-  }, [handleManualRefresh]);
+  const startAttendance = useCallback(async () => {
+    if (!selectedClass) {
+      toast.error('No class selected');
+      return;
+    }
+    
+    try {
+      // Initialize attendance session on backend
+      await classApi.startAttendance(selectedClass.id);
+      
+      setShowQR(true);
+      setPresentStudents([]); // Clear previous attendance
+      
+      // Generate QR code
+      setTimeout(() => {
+        generateQRCode(selectedClass);
+      }, 100);
+      
+      toast.success('Attendance session started');
+    } catch (error) {
+      console.error('Error starting attendance:', error);
+      toast.error('Failed to start attendance session');
+    }
+  }, [selectedClass, generateQRCode]);
 
   const stopAttendance = useCallback(() => {
     setShowQR(false);
@@ -312,15 +334,20 @@ const FacultyDashboard = () => {
       const fetchAttendance = async () => {
         try {
           const response = await classApi.getAttendanceStatus(selectedClass.id);
-          if (response.presentStudents) {
+          console.log('Polling attendance:', response);
+          if (response.presentStudents && Array.isArray(response.presentStudents)) {
             setPresentStudents(response.presentStudents);
           }
         } catch (error) {
           console.error('Error polling attendance:', error);
         }
       };
+      
+      // Fetch immediately when starting
       fetchAttendance();
-      pollInterval = setInterval(fetchAttendance, 5000); // Poll every 5 seconds
+      
+      // Then poll every 2 seconds for real-time updates
+      pollInterval = setInterval(fetchAttendance, 2000);
     }
     return () => {
       if (pollInterval) clearInterval(pollInterval);

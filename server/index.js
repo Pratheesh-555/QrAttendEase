@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
 import classRoutes from './routes/class.js';
-import attendanceRoutes from './routes/attendance.js';
+// import attendanceRoutes from './routes/attendance.js'; // Not currently used
 
 // Get directory path for ES module
 const __filename = fileURLToPath(import.meta.url);

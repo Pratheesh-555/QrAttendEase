@@ -67,9 +67,18 @@ const AttendanceStatus = ({
                           key={index}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="text-green-300 text-sm sm:text-base"
+                          transition={{ delay: index * 0.05 }}
+                          className="text-green-300 text-sm sm:text-base flex items-center gap-2"
                         >
-                          {typeof student === 'object' ? student.studentName : student}
+                          <span className="text-green-500">✓</span>
+                          <span className="font-medium">
+                            {typeof student === 'object' ? student.studentName : student}
+                          </span>
+                          {typeof student === 'object' && student.studentEmail && (
+                            <span className="text-xs text-gray-400 truncate">
+                              ({student.studentEmail})
+                            </span>
+                          )}
                         </motion.li>
                       ))}
                     </ul>
