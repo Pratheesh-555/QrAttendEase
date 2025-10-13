@@ -11,6 +11,7 @@ export default [
       'build', 
       '*.config.js',
       'src/components/Auth.jsx', // Unused legacy file with Supabase
+      'public/service-worker.js', // Service worker has special globals
     ] 
   },
   {
@@ -37,7 +38,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true },
+        { allowConstantExport: true, allowExportNames: ['useTheme', 'ThemeProvider'] },
       ],
       'no-unused-vars': 'off', // Turn off - too many false positives with JSX
       'no-console': 'off', // Allow console for debugging

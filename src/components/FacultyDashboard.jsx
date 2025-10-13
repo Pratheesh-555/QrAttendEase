@@ -1,7 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { toast } from 'react-hot-toast'; 
-import { Plus, List } from 'lucide-react';
+import { Plus, List, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import CryptoJS from 'crypto-js';
@@ -21,6 +21,8 @@ import QRModal from './dashboard/QRModal';
 import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 import StudentListModal from './dashboard/StudentListModal';
+import AttendanceHistory from './dashboard/AttendanceHistory';
+import LateArrivalIndicator from './dashboard/LateArrivalIndicator';
 
 const FacultyDashboard = () => {
   const [classes, setClasses] = useState(() => {
@@ -41,6 +43,9 @@ const FacultyDashboard = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showStudentList, setShowStudentList] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [lateStudents, setLateStudents] = useState([]);
 
   const [newClass, setNewClass] = useState({
     name: '',
@@ -262,6 +267,8 @@ const FacultyDashboard = () => {
       
       setShowQR(true);
       setPresentStudents([]); // Clear previous attendance
+      setLateStudents([]); // Clear late students
+      setSessionStartTime(new Date()); // Track session start time
       
       // Generate QR code
       setTimeout(() => {
@@ -338,6 +345,9 @@ const FacultyDashboard = () => {
           if (response.presentStudents && Array.isArray(response.presentStudents)) {
             setPresentStudents(response.presentStudents);
           }
+          if (response.lateStudents && Array.isArray(response.lateStudents)) {
+            setLateStudents(response.lateStudents);
+          }
         } catch (error) {
           console.error('Error polling attendance:', error);
         }
@@ -367,15 +377,26 @@ const FacultyDashboard = () => {
           >
             Faculty Dashboard
           </motion.h1>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAddModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center w-full sm:w-auto justify-center text-sm sm:text-base"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Class
-          </motion.button>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowHistory(true)}
+              className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center text-sm sm:text-base flex-1 sm:flex-initial"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAddModal(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center text-sm sm:text-base flex-1 sm:flex-initial"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Class
+            </motion.button>
+          </div>
         </div>
         
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
@@ -421,6 +442,18 @@ const FacultyDashboard = () => {
                     onMarkPresent={handleMarkPresent}
                     studentListUploaded={studentListUploaded}
                   />
+                  
+                  {/* Late Arrival Tracking */}
+                  {showQR && presentStudents.length > 0 && sessionStartTime && (
+                    <div className="bg-gray-800 rounded-xl p-6">
+                      <h3 className="text-xl font-bold text-white mb-4">Attendance Breakdown</h3>
+                      <LateArrivalIndicator 
+                        students={presentStudents}
+                        sessionStartTime={sessionStartTime}
+                        gracePeriodMinutes={selectedClass?.gracePeriodMinutes || 10}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <EmptyState 
@@ -455,6 +488,13 @@ const FacultyDashboard = () => {
         students={selectedClass?.student_list || []}
         className={selectedClass?.name}
       />
+
+      {showHistory && (
+        <AttendanceHistory 
+          classes={classes}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 };

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'path';
 import classRoutes from './routes/class.js';
-// import attendanceRoutes from './routes/attendance.js'; // Not currently used
+import attendanceRoutes from './routes/attendance.js';
+import { apiLimiter, attendanceLimiter } from './middleware/rateLimiter.js';
 
 // Get directory path for ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -38,61 +39,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Apply rate limiting
+app.use('/api/', apiLimiter);
+app.use('/api/attendance/mark', attendanceLimiter);
+
 // Routes
 app.use('/api/classes', classRoutes);
-// In-memory attendance store for demo/testing
-const attendanceStore = {};
-
-// Start attendance for a class
-app.post('/api/attendance/start', (req, res) => {
-  const { classId } = req.body;
-  if (!classId) return res.status(400).json({ success: false, message: 'Missing classId' });
-  attendanceStore[classId] = { presentStudents: [] };
-  res.json({ success: true });
-});
-
-// Mark student attendance
-app.post('/api/attendance/mark', (req, res) => {
-  const { classId, studentEmail, studentName } = req.body;
-  if (!classId || !studentEmail || !studentName) {
-    return res.status(400).json({ success: false, message: 'Missing data' });
-  }
-  
-  if (!attendanceStore[classId]) {
-    attendanceStore[classId] = { presentStudents: [] };
-  }
-  
-  // Check for duplicate
-  const isDuplicate = attendanceStore[classId].presentStudents.some(
-    s => s.studentEmail === studentEmail
-  );
-  
-  if (isDuplicate) {
-    return res.json({ 
-      success: false, 
-      message: 'Attendance already marked for this student',
-      presentStudents: attendanceStore[classId].presentStudents 
-    });
-  }
-  
-  // Add student to present list
-  attendanceStore[classId].presentStudents.push({ studentEmail, studentName });
-  
-  console.log(`Attendance marked for ${studentName} (${studentEmail}) in class ${classId}`);
-  
-  res.json({ 
-    success: true, 
-    message: 'Attendance marked successfully',
-    presentStudents: attendanceStore[classId].presentStudents 
-  });
-});
-
-// Get attendance status
-app.get('/api/attendance/:classId', (req, res) => {
-  const { classId } = req.params;
-  const presentStudents = attendanceStore[classId]?.presentStudents || [];
-  res.json({ presentStudents });
-});
+app.use('/api/attendance', attendanceRoutes);
 
 // MongoDB Atlas connection with options
 if (process.env.MONGODB_URI) {

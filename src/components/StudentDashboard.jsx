@@ -16,6 +16,7 @@ const StudentDashboard = () => {
   const [cameraStarted, setCameraStarted] = useState(false);
   const [qrData, setQrData] = useState(null);
   const [presentees, setPresentees] = useState([]);
+  const [isLate, setIsLate] = useState(false);
   const navigate = useNavigate();
   const qrReaderRef = useRef(null);
   const html5QrCode = useRef(null);
@@ -148,13 +149,17 @@ const StudentDashboard = () => {
       if (response.success) {
         toast.success('Attendance marked successfully!');
         
+        // Check if marked as late
+        setIsLate(response.isLate || false);
+        
         // Store in localStorage for offline access
         const attendanceHistory = JSON.parse(
           localStorage.getItem('attendanceHistory') || '[]'
         );
         attendanceHistory.push({
           classId: data.classId,
-          timestamp: new Date().getTime()
+          timestamp: new Date().getTime(),
+          isLate: response.isLate || false
         });
         localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
         
@@ -277,6 +282,11 @@ const StudentDashboard = () => {
                 </div>
                 <p className="text-base sm:text-lg font-medium mb-1">QR Code Scanned!</p>
                 <p className="text-xs sm:text-sm text-gray-400">Click submit to mark your attendance</p>
+                {isLate && (
+                  <div className="mt-3 bg-orange-900/30 border border-orange-700 rounded-lg p-2">
+                    <p className="text-xs text-orange-300">⚠️ You may be marked as late</p>
+                  </div>
+                )}
               </motion.div>
             )}
             
