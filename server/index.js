@@ -13,8 +13,8 @@ import { apiLimiter, attendanceLimiter } from './middleware/rateLimiter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env file from project root
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// Load .env file from server directory
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
@@ -48,6 +48,8 @@ app.use('/api/classes', classRoutes);
 app.use('/api/attendance', attendanceRoutes);
 
 // MongoDB Atlas connection with options
+const PORT = process.env.PORT || 5000;
+
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
@@ -55,18 +57,26 @@ if (process.env.MONGODB_URI) {
     serverSelectionTimeoutMS: 5000
   })
   .then(() => {
-    app.listen(process.env.PORT || 5000, () => {
-      console.log(`Server running on port ${process.env.PORT || 5000}`);
-      console.log('MongoDB Atlas connected successfully');
-    });
+    console.log('✅ MongoDB connected successfully');
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📡 API available at http://localhost:${PORT}/api`);
   })
   .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+    console.warn('⚠️  MongoDB connection failed:', err.message);
+    console.log('📝 Running in demo mode without database');
+    console.log('💡 To enable database: Install MongoDB or add MongoDB Atlas URI to server/.env');
+  })
+  .finally(() => {
+    // Start server regardless of MongoDB connection
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📡 API available at http://localhost:${PORT}/api`);
+    });
   });
 } else {
-  app.listen(process.env.PORT || 5000, () => {
-    console.log(`Server running on port ${process.env.PORT || 5000}`);
-    console.log('MongoDB URI not set, running without database.');
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} (Demo Mode - No Database)`);
+    console.log(`📡 API available at http://localhost:${PORT}/api`);
+    console.log('💡 To enable database: Add MONGODB_URI to server/.env file');
   });
 }

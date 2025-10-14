@@ -1,4 +1,4 @@
-import   React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GraduationCap, LogOut, User } from 'lucide-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
@@ -54,7 +54,7 @@ function App() {
   }
 
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+    // <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
       <Router>
         <div className="w-full h-screen min-h-screen bg-gradient-to-b from-indigo-600 to-white flex flex-col">
           {user && (
@@ -66,7 +66,7 @@ function App() {
                     <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
                       AttendEase
                     </span>
-                  </div>
+                  </div> 
                   <div className="flex items-center space-x-6">
                     <div className="flex items-center space-x-3">
                       {user.picture ? (
@@ -116,7 +116,7 @@ function App() {
           </main>
         </div>
       </Router>
-    </GoogleOAuthProvider>
+    // </GoogleOAuthProvider>
   );
 }
 

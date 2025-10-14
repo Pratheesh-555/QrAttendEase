@@ -1,10 +1,8 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Users, UserCog } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 
 const RoleSelection = () => {
-  const navigate = useNavigate();
 
   const loginAsStudent = useGoogleLogin({
     onSuccess: (tokenResponse) => {

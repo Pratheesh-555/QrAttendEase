@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '../lib/store';
-import { LogIn, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,29 +24,14 @@ const Auth = () => {
     }
   }, [navigate, role]);
 
-  const validateEmail = (email) => {
-    const domain = role === 'faculty' ? '@sastra.edu' : '@sastra.ac.in';
-    return email.endsWith(domain);
-  };
-
   const handleGoogleSignIn = async () => {
     try {
       setError(null);
       setIsLoading(true);
       
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          queryParams: {
-            hd: role === 'faculty' ? 'sastra.edu' : 'sastra.ac.in',
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-          redirectTo: `${window.location.origin}/auth?role=${role}`
-        }
-      });
+      // Google OAuth will be handled by the RoleSelection component
+      navigate('/');
       
-      if (error) throw error;
     } catch (err) {
       setError(err.message);
       setIsLoading(false);
