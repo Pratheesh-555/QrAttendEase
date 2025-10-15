@@ -9,25 +9,15 @@ import classRoutes from './routes/class.js';
 import attendanceRoutes from './routes/attendance.js';
 import { apiLimiter, attendanceLimiter } from './middleware/rateLimiter.js';
 
-// Get directory path for ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Load .env file from server directory
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-
-// Middleware
-const allowedOrigins = [
-  'https://attendeaze.netlify.app',
-  'http://localhost:5173',
-  'http://localhost:3000'
-];
+const allowedOrigins = ['https://attendeaze.netlify.app', 'http://localhost:5173', 'http://localhost:3000'];
 
 app.use(cors({ 
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+  origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -38,16 +28,11 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-
-// Apply rate limiting
 app.use('/api/', apiLimiter);
 app.use('/api/attendance/mark', attendanceLimiter);
-
-// Routes
 app.use('/api/classes', classRoutes);
 app.use('/api/attendance', attendanceRoutes);
 
-// MongoDB Atlas connection with options
 const PORT = process.env.PORT || 5000;
 
 if (process.env.MONGODB_URI) {
@@ -67,7 +52,6 @@ if (process.env.MONGODB_URI) {
     console.log('💡 To enable database: Install MongoDB or add MongoDB Atlas URI to server/.env');
   })
   .finally(() => {
-    // Start server regardless of MongoDB connection
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📡 API available at http://localhost:${PORT}/api`);

@@ -3,11 +3,7 @@ import Class from '../models/Class.js';
 export const createClass = async (req, res) => {
   try {
     const { teacherEmail, className, students } = req.body;
-    const newClass = new Class({
-      teacherEmail,
-      className,
-      students
-    });
+    const newClass = new Class({ teacherEmail, className, students });
     await newClass.save();
     res.status(201).json(newClass);
   } catch (error) {
