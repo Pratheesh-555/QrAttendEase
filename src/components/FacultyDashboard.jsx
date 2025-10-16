@@ -139,26 +139,32 @@ const FacultyDashboard = () => {
       const encrypted = CryptoJS.AES.encrypt(JSON.stringify(payload), secretKey).toString();
   
       const element = document.getElementById(containerId);
-      if (element) {
-        try {
-          element.innerHTML = '';
-          const codeWriter = new BrowserQRCodeSvgWriter();
-          const qrSize = containerId === 'qr-code' ? 300 : 500;
-          
-          // Generate QR code with better error correction
-          const svg = codeWriter.write(encrypted, qrSize, qrSize);
-          element.appendChild(svg);
-          
-          setQrValue(encrypted);
-          if (showToast) {
-            toast.success('QR Code generated successfully');
-          }
-        } catch (err) {
-          toast.error('Failed to write QR code');
-        }
+      if (!element) {
+        setIsGeneratingQR(false);
+        toast.error('QR container not found. Please try again.');
+        return null;
       }
-      setIsGeneratingQR(false);
-      return encrypted;
+      
+      try {
+        element.innerHTML = '';
+        const codeWriter = new BrowserQRCodeSvgWriter();
+        const qrSize = containerId === 'qr-code' ? 300 : 500;
+        
+        // Generate QR code with better error correction
+        const svg = codeWriter.write(encrypted, qrSize, qrSize);
+        element.appendChild(svg);
+        
+        setQrValue(encrypted);
+        if (showToast) {
+          toast.success('QR Code generated successfully');
+        }
+        setIsGeneratingQR(false);
+        return encrypted;
+      } catch (err) {
+        setIsGeneratingQR(false);
+        toast.error('Failed to write QR code');
+        return null;
+      }
     } catch (error) {
       setIsGeneratingQR(false);
       toast.error('Failed to generate QR code');
@@ -253,23 +259,37 @@ const FacultyDashboard = () => {
       return;
     }
     
+    if (!selectedClass.studentList || selectedClass.studentList.length === 0) {
+      toast.error('Please upload student list first');
+      return;
+    }
+    
     try {
-      // Initialize attendance session on backend
-      await classApi.startAttendance(selectedClass.id);
+      // Try to initialize attendance session on backend (optional)
+      try {
+        await classApi.startAttendance(selectedClass.id);
+      } catch (backendError) {
+        // Backend may be unavailable, continue with local mode
+      }
       
       setShowQR(true);
       setPresentStudents([]); // Clear previous attendance
       setLateStudents([]); // Clear late students
       setSessionStartTime(new Date()); // Track session start time
+      setAbsentStudents(selectedClass.studentList.map(s => s.name || s));
       
-      // Generate QR code
+      // Generate QR code after DOM update (increased timeout for reliability)
       setTimeout(() => {
-        generateQRCode(selectedClass);
-      }, 100);
+        const qrGenerated = generateQRCode(selectedClass);
+        if (!qrGenerated) {
+          toast.error('Failed to generate QR code. Please try clicking "Refresh QR Code".');
+        }
+      }, 300);
       
       toast.success('Attendance session started');
     } catch (error) {
       toast.error('Failed to start attendance session');
+      setShowQR(false);
     }
   }, [selectedClass, generateQRCode]);
 

@@ -137,8 +137,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'QrAttendEase';
   const options = {
     body: data.body || 'New notification',
-    icon: '/logo-192.png',
-    badge: '/badge-72.png',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
     vibrate: [200, 100, 200],
     data: data.data || {}
   };

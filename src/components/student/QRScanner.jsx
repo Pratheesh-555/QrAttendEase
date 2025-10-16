@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BrowserQRCodeReader } from '@zxing/browser';
 import { motion } from 'framer-motion';
 import { Camera, CheckCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -12,56 +12,63 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
   const [canSubmit, setCanSubmit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const html5QrCodeRef = useRef(null);
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(null);
 
   useEffect(() => {
-    let html5QrCode;
-
     const startScanner = async () => {
+      const container = document.getElementById('qr-reader');
+      if (!container) return;
+      container.innerHTML = '';
+      const videoEl = document.createElement('video');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.style.width = '100%';
+      videoEl.style.height = '100%';
+      container.appendChild(videoEl);
+      videoRef.current = videoEl;
+
       try {
-        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length) {
-          setScanning(true);
-          await html5QrCodeRef.current.start(
-            { facingMode: "environment" },
-            {
-              fps: 60,
-              qrbox: { width: window.innerWidth < 500 ? 200 : 300, height: window.innerWidth < 500 ? 200 : 300 },
-            },
-            (decodedText) => {
-              setScannedData(decodedText);
-              setCanSubmit(true);
-              html5QrCodeRef.current.stop();
-              setScanning(false);
-              setErrorMsg("");
-              try {
-                new Audio('/success.mp3').play();
-              } catch (err) {
-                // ignore audio error
-              }
-            },
-            (error) => {
-              if (!error.includes("QR code not found")) {
-                setErrorMsg("QR Code scan error: " + error);
-                toast.error("QR Code scan error");
-              }
-            }
-          );
-        } else {
-          setErrorMsg("No cameras found");
-          toast.error("No cameras found");
+        codeReaderRef.current = new BrowserQRCodeReader(null, { timeBetweenDecodingAttempts: 150 });
+        const devices = await codeReaderRef.current.getVideoInputDevices();
+        if (!devices || !devices.length) {
+          setErrorMsg('No cameras found');
+          toast.error('No cameras found');
+          return;
         }
+
+        const envDevice = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+        setScanning(true);
+
+        codeReaderRef.current.decodeFromVideoDevice(envDevice.deviceId, videoEl, (result, err) => {
+          if (result) {
+              setScannedData(result.getText());
+              setCanSubmit(true);
+              try { codeReaderRef.current.reset(); } catch (e) { void e; }
+              setScanning(false);
+              setErrorMsg('');
+              try { new Audio('/success.mp3').play(); } catch (e) { void e; }
+            } else if (err) {
+              void err; // intentionally ignore frequent not-found errors
+            }
+        });
       } catch (err) {
-        setErrorMsg("Camera access error");
-        toast.error("Failed to access camera");
+        setErrorMsg('Camera access error');
+        toast.error('Failed to access camera');
       }
     };
 
     const stopScanner = () => {
-      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-        html5QrCodeRef.current.stop().catch(() => {});
-        html5QrCodeRef.current = null;
+      try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+      codeReaderRef.current = null;
+      if (videoRef.current) {
+        try {
+          const stream = videoRef.current.srcObject;
+          if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
+        } catch (e) { void e; }
+        videoRef.current.remove();
+        videoRef.current = null;
       }
+      setScanning(false);
     };
 
     if (cameraStarted) startScanner();
@@ -91,10 +98,7 @@ const QRScanner = ({ onScanSuccess, userEmail, userName }) => {
       setScannedData(null);
       setCameraStarted(false);
       setErrorMsg("");
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(() => {});
-        html5QrCodeRef.current = null;
-      }
+      try { codeReaderRef.current?.reset(); } catch (e) { void e; }
     }
   };
 

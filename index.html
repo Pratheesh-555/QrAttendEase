@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     <meta name="theme-color" content="#8b5cf6" />
     <meta name="description" content="QrAttendEase - Modern QR-based attendance management system" />
     
@@ -12,7 +12,7 @@
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/logo-192.png" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     
     <!-- Mobile app -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -20,24 +20,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="AttendEase" />
     
-    <!-- Camera permissions -->
-    <meta http-equiv="Permissions-Policy" content="camera=*" />
+    <!-- Camera and media permissions -->
+    <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, geolocation=*" />
     
     <title>QrAttendEase - Smart Attendance System</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    
-    <!-- Service Worker -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('SW registered'))
-            .catch(err => console.log('SW error:', err));
-        });
-      }
-    </script>
   </body>
 </html>

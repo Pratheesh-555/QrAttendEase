@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BrowserQRCodeReader } from '@zxing/browser';
 import { motion } from 'framer-motion';
 import { Camera, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +19,8 @@ const StudentDashboard = () => {
   const [isLate, setIsLate] = useState(false);
   const navigate = useNavigate();
   const qrReaderRef = useRef(null);
-  const html5QrCode = useRef(null);
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('googleToken');
@@ -52,62 +53,101 @@ const StudentDashboard = () => {
   useEffect(() => {
     let timeoutId;
 
-    const startScanner = async () => {
-      if (!qrReaderRef.current || html5QrCode.current) return;
+    const handleDecoded = async (text) => {
       try {
-        html5QrCode.current = new Html5Qrcode("qr-reader");
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length) {
-          setScanning(true);
-          await html5QrCode.current.start(
-            { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: { width: window.innerWidth < 500 ? 200 : 300, height: window.innerWidth < 500 ? 200 : 300 },
-            },
-            async (decodedText) => {
-              try {
-                const decrypted = CryptoJS.AES.decrypt(
-                  decodedText,
-                  'attendance-qr-secret-key'
-                ).toString(CryptoJS.enc.Utf8);
-                const data = JSON.parse(decrypted);
-                const now = new Date().getTime();
-                if (now - data.timestamp > 30000) {
-                  toast.error('QR code has expired');
-                  return;
-                }
-                setQrData(decrypted);
-                setScanSuccess(true);
-                setScanning(false);
-                toast.success('QR code scanned! Now submit to mark attendance.');
-              } catch (error) {
-                toast.error('Invalid QR code');
-              }
-            },
-            (error) => {
-              // Silently ignore "QR code not found" errors
-            }
-          );
-        } else {
-          toast.error("No cameras found");
+        const decrypted = CryptoJS.AES.decrypt(
+          text,
+          'attendance-qr-secret-key'
+        ).toString(CryptoJS.enc.Utf8);
+        const data = JSON.parse(decrypted);
+        const now = new Date().getTime();
+        if (now - data.timestamp > 30000) {
+          toast.error('QR code has expired');
+          return;
         }
+        setQrData(decrypted);
+        setScanSuccess(true);
+        setScanning(false);
+        toast.success('QR code scanned! Now submit to mark attendance.');
+
+        // stop camera after successful decode
+        try {
+          codeReaderRef.current?.reset();
+        } catch (e) {
+          void e;
+        }
+      } catch (error) {
+        toast.error('Invalid QR code');
+      }
+    };
+
+    const startScanner = async () => {
+      if (!qrReaderRef.current || codeReaderRef.current) return;
+
+      // create video element if missing
+      const container = qrReaderRef.current;
+      container.innerHTML = '';
+      const videoEl = document.createElement('video');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.style.width = '100%';
+      videoEl.style.height = '100%';
+      container.appendChild(videoEl);
+      videoRef.current = videoEl;
+
+      try {
+        codeReaderRef.current = new BrowserQRCodeReader(null, { timeBetweenDecodingAttempts: 200 });
+        const devices = await codeReaderRef.current.getVideoInputDevices();
+        if (!devices || !devices.length) {
+          toast.error('No cameras found');
+          return;
+        }
+
+        // prefer environment facing camera when available
+        const envDevice = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+        setScanning(true);
+
+        // decode continuously
+        codeReaderRef.current.decodeFromVideoDevice(envDevice.deviceId, videoEl, (result, err) => {
+          if (result) {
+            handleDecoded(result.getText());
+          } else if (err) {
+            // ignore not found exceptions to avoid spamming errors
+            // Some browsers throw NotFoundException frequently while scanning
+          }
+        });
       } catch (err) {
-        toast.error("Failed to access camera");
+        // user may be in incognito or denied permissions
+        console.debug && console.debug('Scanner start error:', err);
+        toast.error('Unable to start camera. Please enable camera permissions or try a different browser.');
+  // cleanup
+  try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        codeReaderRef.current = null;
       }
     };
 
     const stopScanner = async () => {
-      if (html5QrCode.current?.isScanning) {
-        await html5QrCode.current.stop();
-        html5QrCode.current = null;
+      try {
+        codeReaderRef.current?.reset();
+      } catch (e) {
+        void e;
       }
+      codeReaderRef.current = null;
+      if (videoRef.current) {
+        try {
+          // stop video tracks
+          const stream = videoRef.current.srcObject;
+          if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
+        } catch (e) { void e; }
+        videoRef.current.remove();
+        videoRef.current = null;
+      }
+      setScanning(false);
     };
 
     if (cameraStarted) {
       timeoutId = setTimeout(() => {
         startScanner();
-      }, 500);
+      }, 300);
     }
 
     return () => {
@@ -161,10 +201,21 @@ const StudentDashboard = () => {
         setScanSuccess(false);
         setQrData(null);
         
-        // Stop camera after successful submission
-        if (html5QrCode.current?.isScanning) {
-          await html5QrCode.current.stop();
-          html5QrCode.current = null;
+        // Stop camera after successful submission (ZXing cleanup)
+        try {
+          codeReaderRef.current?.reset();
+        } catch (e) {
+          void e;
+        }
+        try {
+          if (videoRef.current) {
+            const stream = videoRef.current.srcObject;
+            if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
+            videoRef.current.remove();
+            videoRef.current = null;
+          }
+        } catch (e) {
+          void e;
         }
         setCameraStarted(false);
       } else {

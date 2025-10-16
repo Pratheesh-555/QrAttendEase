@@ -4,9 +4,10 @@ import { GraduationCap, LogOut, User } from 'lucide-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import axios from 'axios';
 
-const FacultyDashboard = lazy(() => import('./components/FacultyDashboard'));
-const StudentDashboard = lazy(() => import('./components/StudentDashboard'));
-const RoleSelection = lazy(() => import('./components/RoleSelection'));
+// Lazy load components for better performance
+const FacultyDashboard = lazy(() => import(/* webpackChunkName: "faculty" */ './components/FacultyDashboard'));
+const StudentDashboard = lazy(() => import(/* webpackChunkName: "student" */ './components/StudentDashboard'));
+const RoleSelection = lazy(() => import(/* webpackChunkName: "auth" */ './components/RoleSelection'));
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
