@@ -42,7 +42,6 @@ export const startAttendance = async (req, res) => {
       attendance: newAttendance 
     });
   } catch (error) {
-    console.error('Error starting attendance:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -102,7 +101,6 @@ export const markAttendance = async (req, res) => {
       attendance 
     });
   } catch (error) {
-    console.error('Error marking attendance:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -141,7 +139,6 @@ export const getAttendanceStatus = async (req, res) => {
       sessionStartTime: attendance.sessionStartTime
     });
   } catch (error) {
-    console.error('Error getting attendance status:', error);
     res.status(500).json({ message: error.message });
   }
 };

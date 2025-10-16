@@ -31,7 +31,6 @@ function App() {
         });
         setUser({ ...response.data, token });
       } catch (error) {
-        console.error('Token verification failed:', error);
         localStorage.removeItem('googleToken');
       } finally {
         setLoading(false);

@@ -45,25 +45,18 @@ if (process.env.MONGODB_URI) {
     serverSelectionTimeoutMS: 5000
   })
   .then(() => {
-    console.log('✅ MongoDB connected successfully');
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📡 API available at http://localhost:${PORT}/api`);
+    console.log('MongoDB connected successfully');
   })
   .catch(err => {
-    console.warn('⚠️  MongoDB connection failed:', err.message);
-    console.log('📝 Running in demo mode without database');
-    console.log('💡 To enable database: Install MongoDB or add MongoDB Atlas URI to server/.env');
+    console.error('MongoDB connection failed:', err.message);
   })
   .finally(() => {
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📡 API available at http://localhost:${PORT}/api`);
+      console.log(`Server running on port ${PORT}`);
     });
   });
 } else {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT} (Demo Mode - No Database)`);
-    console.log(`📡 API available at http://localhost:${PORT}/api`);
-    console.log('💡 To enable database: Add MONGODB_URI to server/.env file');
+    console.log(`Server running on port ${PORT} - No database configured`);
   });
 }

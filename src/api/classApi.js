@@ -22,13 +22,8 @@ export const classApi = {
 
   // Start attendance for a class
   startAttendance: async (classId) => {
-    try {
-      const response = await axios.post(`${API_URL}/attendance/start`, { classId });
-      return response.data;
-    } catch (error) {
-      console.error('Error starting attendance:', error);
-      throw error;
-    }
+    const response = await axios.post(`${API_URL}/attendance/start`, { classId });
+    return response.data;
   },
 
   // Mark student attendance
@@ -47,20 +42,14 @@ export const classApi = {
       if (error.response && error.response.data && error.response.data.message) {
         return { success: false, message: error.response.data.message };
       }
-      console.error('Error marking attendance:', error);
       return { success: false, message: 'Failed to mark attendance.' };
     }
   },
 
   // Get attendance status
   getAttendanceStatus: async (classId) => {
-    try {
-      const response = await axios.get(`${API_URL}/attendance/${classId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error getting attendance status:', error);
-      throw error;
-    }
+    const response = await axios.get(`${API_URL}/attendance/${classId}`);
+    return response.data;
   },
 
   // Upload student list

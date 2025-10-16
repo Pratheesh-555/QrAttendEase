@@ -8,7 +8,7 @@ const RoleSelection = () => {
       localStorage.setItem('googleToken', tokenResponse.access_token);
       window.location.href = '/student';
     },
-    onError: (error) => console.error('Login Failed:', error),
+    onError: () => {},
     flow: 'implicit',
     prompt: 'consent',
     select_account: true
@@ -19,7 +19,7 @@ const RoleSelection = () => {
       localStorage.setItem('googleToken', tokenResponse.access_token);
       window.location.href = '/faculty';
     },
-    onError: (error) => console.error('Login Failed:', error),
+    onError: () => {},
     flow: 'implicit',
     prompt: 'consent',
     select_account: true

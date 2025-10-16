@@ -41,7 +41,6 @@ const StudentDashboard = () => {
         setUserInfo(response.data);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching user info:', error);
         localStorage.removeItem('googleToken');
         navigate('/');
       }
@@ -83,21 +82,17 @@ const StudentDashboard = () => {
                 setScanning(false);
                 toast.success('QR code scanned! Now submit to mark attendance.');
               } catch (error) {
-                console.error('QR Processing error:', error);
                 toast.error('Invalid QR code');
               }
             },
             (error) => {
-              if (!error.includes("QR code not found")) {
-                console.error("QR Code scan error:", error);
-              }
+              // Silently ignore "QR code not found" errors
             }
           );
         } else {
           toast.error("No cameras found");
         }
       } catch (err) {
-        console.error("Camera initialization error:", err);
         toast.error("Failed to access camera");
       }
     };
@@ -138,8 +133,6 @@ const StudentDashboard = () => {
         return;
       }
       
-      console.log('Marking attendance for:', { classId: data.classId, email: userInfo.email, name: userInfo.name });
-      
       const response = await classApi.markAttendance(
         data.classId,
         userInfo.email,
@@ -178,7 +171,6 @@ const StudentDashboard = () => {
         toast.error(response.message || 'Failed to mark attendance');
       }
     } catch (error) {
-      console.error('Error marking attendance:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to mark attendance');
     }
   };

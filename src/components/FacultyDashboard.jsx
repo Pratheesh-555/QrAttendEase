@@ -153,17 +153,13 @@ const FacultyDashboard = () => {
           if (showToast) {
             toast.success('QR Code generated successfully');
           }
-          
-          console.log('QR Code generated for class:', classInfo.name, 'Size:', qrSize);
         } catch (err) {
-          console.error('QR Write Error:', err);
           toast.error('Failed to write QR code');
         }
       }
       setIsGeneratingQR(false);
       return encrypted;
     } catch (error) {
-      console.error('QR Generation Error:', error);
       setIsGeneratingQR(false);
       toast.error('Failed to generate QR code');
       return null;
@@ -218,13 +214,11 @@ const FacultyDashboard = () => {
           setAbsentStudents(studentNames);
           toast.success(`Uploaded ${studentNames.length} students`);
         } catch (error) {
-          console.error('File processing error:', error);
           toast.error('Failed to process file');
         }
       };
       reader.readAsArrayBuffer(file);
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error('Failed to upload student list');
     }
   }, [selectedClass]);
@@ -234,8 +228,6 @@ const FacultyDashboard = () => {
     setLoading(true);
     try {
       await readExcelFile(acceptedFiles[0]);
-    } catch (error) {
-      console.error('Upload error:', error);
     } finally {
       setLoading(false);
     }
@@ -277,7 +269,6 @@ const FacultyDashboard = () => {
       
       toast.success('Attendance session started');
     } catch (error) {
-      console.error('Error starting attendance:', error);
       toast.error('Failed to start attendance session');
     }
   }, [selectedClass, generateQRCode]);
@@ -328,7 +319,6 @@ const FacultyDashboard = () => {
       setPresentStudents([]);
       setAbsentStudents([]);
     } catch (error) {
-      console.error('Email Error:', error);
       toast.error('Failed to send attendance report');
     } finally {
       setIsSendingEmail(false);
@@ -341,7 +331,6 @@ const FacultyDashboard = () => {
       const fetchAttendance = async () => {
         try {
           const response = await classApi.getAttendanceStatus(selectedClass.id);
-          console.log('Polling attendance:', response);
           if (response.presentStudents && Array.isArray(response.presentStudents)) {
             setPresentStudents(response.presentStudents);
           }
@@ -349,7 +338,7 @@ const FacultyDashboard = () => {
             setLateStudents(response.lateStudents);
           }
         } catch (error) {
-          console.error('Error polling attendance:', error);
+          // Silently handle polling errors
         }
       };
       
