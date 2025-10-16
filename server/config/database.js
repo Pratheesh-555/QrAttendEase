@@ -2,10 +2,7 @@ import mongoose from 'mongoose';
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/qrattendease', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/qrattendease');
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     mongoose.connection.on('error', (err) => console.error('❌ MongoDB connection error:', err));
     mongoose.connection.on('disconnected', () => console.log('⚠️  MongoDB disconnected'));

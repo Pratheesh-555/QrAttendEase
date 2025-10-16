@@ -14,7 +14,12 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
-const allowedOrigins = ['https://attendeaze.netlify.app', 'http://localhost:5173', 'http://localhost:3000'];
+const allowedOrigins = [
+  'https://attendeaze.netlify.app',
+  'https://attendease-yu7r.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
 
 app.use(cors({ 
   origin: (origin, callback) => {
@@ -37,8 +42,6 @@ const PORT = process.env.PORT || 5000;
 
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 5000
   })
   .then(() => {
