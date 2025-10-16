@@ -60,12 +60,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true,
-    strictPort: true,
+    host: '0.0.0.0',
+    strictPort: false,
     hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      port: 5173
+      overlay: false,
+      clientPort: 5173
+    },
+    watch: {
+      usePolling: true
     }
   }
 });

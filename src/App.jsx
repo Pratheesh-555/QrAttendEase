@@ -55,7 +55,7 @@ function App() {
 
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="w-full h-screen min-h-screen bg-gradient-to-b from-indigo-600 to-white flex flex-col">
           {user && (
             <nav className="bg-gradient-to-r from-indigo-700 to-indigo-600 text-white shadow-lg">
