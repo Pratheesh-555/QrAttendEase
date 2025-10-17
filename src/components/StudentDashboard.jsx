@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import { motion } from 'framer-motion';
-import { Camera, LogOut } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
@@ -89,16 +89,26 @@ const StudentDashboard = () => {
       container.innerHTML = '';
       const videoEl = document.createElement('video');
       videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('autoplay', 'true');
       videoEl.style.width = '100%';
       videoEl.style.height = '100%';
+      videoEl.style.objectFit = 'cover';
+      videoEl.style.display = 'block';
       container.appendChild(videoEl);
       videoRef.current = videoEl;
 
       try {
-        codeReaderRef.current = new BrowserQRCodeReader(null, { timeBetweenDecodingAttempts: 200 });
+        codeReaderRef.current = new BrowserQRCodeReader(null, { timeBetweenDecodingAttempts: 300 });
+        
+        // Request camera permission explicitly
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        
         const devices = await codeReaderRef.current.getVideoInputDevices();
         if (!devices || !devices.length) {
           toast.error('No cameras found');
+          stream.getTracks().forEach(t => t.stop());
           return;
         }
 
@@ -107,7 +117,7 @@ const StudentDashboard = () => {
         setScanning(true);
 
         // decode continuously
-        codeReaderRef.current.decodeFromVideoDevice(envDevice.deviceId, videoEl, (result, err) => {
+        await codeReaderRef.current.decodeFromVideoDevice(envDevice.deviceId, videoEl, (result, err) => {
           if (result) {
             handleDecoded(result.getText());
           } else if (err) {
@@ -117,10 +127,21 @@ const StudentDashboard = () => {
         });
       } catch (err) {
         // user may be in incognito or denied permissions
-        console.debug && console.debug('Scanner start error:', err);
-        toast.error('Unable to start camera. Please enable camera permissions or try a different browser.');
-  // cleanup
-  try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        setScanning(false);
+        setCameraStarted(false);
+        
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          toast.error('Camera permission denied. Please enable camera access in your browser settings.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          toast.error('No camera found on this device.');
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          toast.error('Camera is already in use by another application.');
+        } else {
+          toast.error('Unable to start camera. Please check permissions and try again.');
+        }
+        
+        // cleanup
+        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
         codeReaderRef.current = null;
       }
     };
@@ -226,11 +247,6 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleSignOut = () => {
-    localStorage.removeItem('googleToken');
-    navigate('/');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
@@ -242,30 +258,6 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 py-4 sm:py-6 px-4">
       <div className="max-w-md mx-auto">
-        {/* User Info Section */}
-        <div className="flex justify-between items-center mb-4 sm:mb-6 bg-gray-800 rounded-lg p-3 sm:p-4">
-          {userInfo?.picture && (
-            <div className="flex items-center gap-2 sm:gap-3">
-              <img 
-                src={userInfo.picture} 
-                alt="Profile" 
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-purple-500"
-              />
-              <div className="text-white">
-                <h2 className="font-semibold text-sm sm:text-base">{userInfo?.name}</h2>
-                <p className="text-xs sm:text-sm text-gray-300 truncate max-w-[150px] sm:max-w-[200px]">{userInfo?.email}</p>
-              </div>
-            </div>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs sm:text-sm transition-colors"
-          >
-            <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-
         <motion.div 
           className="bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 mb-4"
           initial={{ opacity: 0, y: 20 }}
@@ -277,7 +269,7 @@ const StudentDashboard = () => {
             <div 
               id="qr-reader"
               ref={qrReaderRef}
-              className="w-full max-w-[280px] sm:max-w-xs h-[280px] sm:h-[60vw] sm:max-h-[350px] mx-auto rounded-lg overflow-hidden bg-gray-700"
+              className="w-full max-w-[320px] h-[320px] sm:max-w-[400px] sm:h-[400px] mx-auto rounded-lg overflow-hidden bg-black border-2 border-gray-700 flex items-center justify-center"
             />
             
             <motion.button
@@ -297,7 +289,7 @@ const StudentDashboard = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                <div className="relative w-full max-w-[280px] sm:max-w-xs h-[280px] sm:h-[60vw] sm:max-h-[350px] border-2 border-purple-500 rounded-lg">
+                <div className="relative w-full max-w-[320px] h-[320px] sm:max-w-[400px] sm:h-[400px] border-2 border-purple-500 rounded-lg">
                   <motion.div 
                     className="absolute left-0 right-0 h-0.5 bg-purple-500"
                     initial={{ top: 0 }}
@@ -308,6 +300,11 @@ const StudentDashboard = () => {
                       ease: "linear"
                     }}
                   />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-white text-xs sm:text-sm bg-black/50 px-3 py-1 rounded">
+                      Scanning...
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
