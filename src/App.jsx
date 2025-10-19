@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { GraduationCap, LogOut, User } from 'lucide-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import axios from 'axios';
@@ -15,6 +15,20 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Component to track and save current route
+function RouteTracker({ children }) {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Save current route to localStorage (except root path)
+    if (location.pathname !== '/' && location.pathname !== '') {
+      localStorage.setItem('lastRoute', location.pathname);
+    }
+  }, [location]);
+  
+  return children;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,17 +36,40 @@ function App() {
   useEffect(() => {
     const verifyToken = async () => {
       const token = localStorage.getItem('googleToken');
+      const savedUser = localStorage.getItem('userData');
+      
       if (!token) {
         setLoading(false);
         return;
       }
+      
+      // Load cached user data immediately for faster UI
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser);
+          setUser({ ...userData, token });
+        } catch (e) {
+          // Invalid cached data, will fetch fresh
+        }
+      }
+      
       try {
+        // Verify token is still valid
         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setUser({ ...response.data, token });
+        const userData = { ...response.data, token };
+        setUser(userData);
+        // Cache user data for next time
+        localStorage.setItem('userData', JSON.stringify(response.data));
       } catch (error) {
-        localStorage.removeItem('googleToken');
+        // Token expired or invalid - keep user logged out but don't remove token
+        // This allows seamless re-authentication
+        if (error.response?.status === 401) {
+          setUser(null);
+          // Keep token for potential refresh, just mark as expired
+          localStorage.setItem('tokenExpired', 'true');
+        }
       } finally {
         setLoading(false);
       }
@@ -41,7 +78,11 @@ function App() {
   }, []);
 
   const handleSignOut = () => {
+    // Only remove token and user data on explicit sign out
     localStorage.removeItem('googleToken');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('lastRoute');
+    localStorage.removeItem('tokenExpired');
     setUser(null);
   };
 
@@ -85,21 +126,23 @@ function App() {
           )}
           <main className="w-full h-screen min-h-screen bg-gradient-to-b from-indigo-600 to-white flex flex-col">
             <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                {!user ? (
-                  <>
-                    <Route path="/" element={<RoleSelection />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </>
-                ) : (
-                  <>
-                    <Route path="/faculty" element={<FacultyDashboard />} />
-                    <Route path="/student" element={<StudentDashboard />} />
-                    <Route path="/" element={<Navigate to="/faculty" replace />} />
-                    <Route path="*" element={<Navigate to="/faculty" replace />} />
-                  </>
-                )}
-              </Routes>
+              <RouteTracker>
+                <Routes>
+                  {!user ? (
+                    <>
+                      <Route path="/" element={<RoleSelection />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </>
+                  ) : (
+                    <>
+                      <Route path="/faculty" element={<FacultyDashboard />} />
+                      <Route path="/student" element={<StudentDashboard />} />
+                      <Route path="/" element={<Navigate to={localStorage.getItem('lastRoute') || '/faculty'} replace />} />
+                      <Route path="*" element={<Navigate to={localStorage.getItem('lastRoute') || '/faculty'} replace />} />
+                    </>
+                  )}
+                </Routes>
+              </RouteTracker>
             </Suspense>
           </main>
         </div>

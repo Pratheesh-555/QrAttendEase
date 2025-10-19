@@ -84,12 +84,13 @@ const StudentDashboard = () => {
     const startScanner = async () => {
       if (!qrReaderRef.current || codeReaderRef.current) return;
 
-      // create video element if missing
+      // create video element
       const container = qrReaderRef.current;
       container.innerHTML = '';
       const videoEl = document.createElement('video');
       videoEl.setAttribute('playsinline', 'true');
       videoEl.setAttribute('autoplay', 'true');
+      videoEl.setAttribute('muted', 'true');
       videoEl.style.width = '100%';
       videoEl.style.height = '100%';
       videoEl.style.objectFit = 'cover';
@@ -98,50 +99,127 @@ const StudentDashboard = () => {
       videoRef.current = videoEl;
 
       try {
-        codeReaderRef.current = new BrowserQRCodeReader(null, { timeBetweenDecodingAttempts: 300 });
+        toast.success('Starting camera...');
         
-        // Request camera permission explicitly
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' } 
+        // Initialize ZXing reader
+        codeReaderRef.current = new BrowserQRCodeReader(null, { 
+          timeBetweenDecodingAttempts: 300,
+          delayBetweenScanAttempts: 300
         });
         
-        const devices = await codeReaderRef.current.getVideoInputDevices();
-        if (!devices || !devices.length) {
-          toast.error('No cameras found');
-          stream.getTracks().forEach(t => t.stop());
+        // Get available cameras
+        const devices = await codeReaderRef.current.listVideoInputDevices();
+        
+        if (!devices || devices.length === 0) {
+          toast.error('📷 No cameras found on this device');
+          setCameraStarted(false);
           return;
         }
 
-        // prefer environment facing camera when available
-        const envDevice = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+        console.log('📷 Available cameras:', devices);
+
+        // Select rear camera if available (better for mobile)
+        let selectedDeviceId = devices[0].deviceId;
+        for (const device of devices) {
+          if (/back|rear|environment/i.test(device.label)) {
+            selectedDeviceId = device.deviceId;
+            console.log('📷 Using rear camera:', device.label);
+            break;
+          }
+        }
+
         setScanning(true);
 
-        // decode continuously
-        await codeReaderRef.current.decodeFromVideoDevice(envDevice.deviceId, videoEl, (result, err) => {
-          if (result) {
-            handleDecoded(result.getText());
-          } else if (err) {
-            // ignore not found exceptions to avoid spamming errors
-            // Some browsers throw NotFoundException frequently while scanning
+        // Start decoding from selected camera with mobile-friendly constraints
+        const constraints = {
+          video: {
+            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
-        });
+        };
+
+        console.log('📷 Requesting camera with constraints:', constraints);
+
+        // Start the camera stream
+        await codeReaderRef.current.decodeFromConstraints(
+          constraints,
+          videoEl, 
+          (result, error) => {
+            if (result) {
+              console.log('✅ QR Code detected:', result.getText());
+              handleDecoded(result.getText());
+            }
+            // Silently ignore scanning errors (not found, etc.)
+            if (error && error.name !== 'NotFoundException') {
+              console.error('Scanning error:', error);
+            }
+          }
+        );
+
+        console.log('✅ Camera started successfully');
+        toast.success('📷 Camera is ready - point at QR code');
+        
       } catch (err) {
-        // user may be in incognito or denied permissions
+        console.error('❌ Camera error:', err);
         setScanning(false);
         setCameraStarted(false);
         
+        // Provide user-friendly error messages
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          toast.error('Camera permission denied. Please enable camera access in your browser settings.');
+          toast.error('📷 Camera permission denied. Please allow camera access in your browser settings.');
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          toast.error('No camera found on this device.');
+          toast.error('📷 No camera found on this device.');
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          toast.error('Camera is already in use by another application.');
+          toast.error('📷 Camera is in use by another app. Please close other apps and try again.');
+        } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+          toast.error('📷 Cannot access rear camera. Trying any available camera...');
+          // Retry with fallback - any camera without specific constraints
+          setCameraStarted(false);
+          codeReaderRef.current = null;
+          setTimeout(async () => {
+            try {
+              const container = qrReaderRef.current;
+              if (!container) return;
+              container.innerHTML = '';
+              const videoEl2 = document.createElement('video');
+              videoEl2.setAttribute('playsinline', 'true');
+              videoEl2.setAttribute('autoplay', 'true');
+              videoEl2.setAttribute('muted', 'true');
+              videoEl2.style.width = '100%';
+              videoEl2.style.height = '100%';
+              videoEl2.style.objectFit = 'cover';
+              videoEl2.style.display = 'block';
+              container.appendChild(videoEl2);
+              videoRef.current = videoEl2;
+              
+              codeReaderRef.current = new BrowserQRCodeReader();
+              setScanning(true);
+              
+              // Fallback: use any camera without constraints
+              await codeReaderRef.current.decodeFromConstraints(
+                { video: { facingMode: 'user' } }, // Try front camera
+                videoEl2,
+                (result) => result && handleDecoded(result.getText())
+              );
+              toast.success('📷 Camera started (front camera)');
+            } catch (e) {
+              toast.error('📷 Failed to start camera: ' + (e.message || 'Unknown error'));
+              setCameraStarted(false);
+            }
+          }, 1000);
+          return;
         } else {
-          toast.error('Unable to start camera. Please check permissions and try again.');
+          toast.error(`📷 Camera error: ${err.message || 'Unknown error'}`);
         }
         
         // cleanup
-        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        try { 
+          if (codeReaderRef.current) {
+            codeReaderRef.current.reset(); 
+          }
+        } catch (e) { void e; }
         codeReaderRef.current = null;
       }
     };
@@ -270,7 +348,20 @@ const StudentDashboard = () => {
               id="qr-reader"
               ref={qrReaderRef}
               className="w-full max-w-[320px] h-[320px] sm:max-w-[400px] sm:h-[400px] mx-auto rounded-lg overflow-hidden bg-black border-2 border-gray-700 flex items-center justify-center"
-            />
+            >
+              {cameraStarted && !scanning && (
+                <div className="text-white text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-3"></div>
+                  <p className="text-sm">Initializing camera...</p>
+                </div>
+              )}
+              {!cameraStarted && (
+                <div className="text-gray-500 text-center p-4">
+                  <Camera className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">Click "Open Camera" to start scanning</p>
+                </div>
+              )}
+            </div>
             
             <motion.button
               whileHover={{ scale: 1.05 }}
