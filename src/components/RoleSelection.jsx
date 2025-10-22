@@ -1,28 +1,49 @@
 import React from 'react';
 import { GraduationCap, Users, UserCog } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 
 const RoleSelection = () => {
   const loginAsStudent = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
+    onSuccess: async (tokenResponse) => {
       localStorage.setItem('googleToken', tokenResponse.access_token);
+      localStorage.setItem('lastRoute', '/student');
+      
+      // Fetch and cache user data immediately
+      try {
+        const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+        });
+        localStorage.setItem('userData', JSON.stringify(response.data));
+      } catch (error) {
+        console.error('Failed to fetch user data');
+      }
+      
       window.location.href = '/student';
     },
     onError: () => {},
-    flow: 'implicit',
-    prompt: 'consent',
-    select_account: true
+    flow: 'implicit'
   });
 
   const loginAsFaculty = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
+    onSuccess: async (tokenResponse) => {
       localStorage.setItem('googleToken', tokenResponse.access_token);
+      localStorage.setItem('lastRoute', '/faculty');
+      
+      // Fetch and cache user data immediately
+      try {
+        const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+        });
+        localStorage.setItem('userData', JSON.stringify(response.data));
+      } catch (error) {
+        console.error('Failed to fetch user data');
+      }
+      
       window.location.href = '/faculty';
     },
     onError: () => {},
-    flow: 'implicit',
-    prompt: 'consent',
-    select_account: true
+    flow: 'implicit'
   });
 
   return (

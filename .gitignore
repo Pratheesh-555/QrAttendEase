@@ -55,3 +55,22 @@ debug.log
 
 # Production
 /server/public
+
+# Documentation (keep only README.md)
+*_FIX.md
+*_GUIDE.md
+*_SETUP.md
+*_COMPLETE.md
+*_CONFIGURED.md
+*_IMPLEMENTED.md
+*_CHECKLIST.md
+*_READY.md
+*_SUCCESS.md
+*_SUMMARY.md
+WEBSOCKET*.md
+DEPLOYMENT*.md
+MOBILE*.md
+CAMERA*.md
+OAUTH*.md
+CSS*.md
+BLANK*.md

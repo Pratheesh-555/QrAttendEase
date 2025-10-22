@@ -43,33 +43,36 @@ function App() {
         return;
       }
       
-      // Load cached user data immediately for faster UI
+      // Load cached user data immediately - keep user logged in
       if (savedUser) {
         try {
           const userData = JSON.parse(savedUser);
           setUser({ ...userData, token });
+          setLoading(false); // User is logged in from cache
         } catch (e) {
-          // Invalid cached data, will fetch fresh
+          console.error('Failed to parse cached user data');
         }
       }
       
       try {
-        // Verify token is still valid
+        // Verify token in background (don't block user experience)
         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const userData = { ...response.data, token };
         setUser(userData);
-        // Cache user data for next time
+        // Update cache with fresh data
         localStorage.setItem('userData', JSON.stringify(response.data));
+        localStorage.removeItem('tokenExpired'); // Token is valid
       } catch (error) {
-        // Token expired or invalid - keep user logged out but don't remove token
-        // This allows seamless re-authentication
-        if (error.response?.status === 401) {
+        // Token verification failed, but keep user logged in with cached data
+        // Only sign out if there's no cached data at all
+        if (!savedUser) {
           setUser(null);
-          // Keep token for potential refresh, just mark as expired
-          localStorage.setItem('tokenExpired', 'true');
+          localStorage.removeItem('googleToken');
         }
+        // Mark token as potentially expired for background refresh
+        localStorage.setItem('tokenExpired', 'true');
       } finally {
         setLoading(false);
       }
