@@ -1,12 +1,13 @@
 import { useCallback, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { toast } from 'react-hot-toast'; 
-import { Plus, List, BarChart3 } from 'lucide-react';
+import { Plus, List, BarChart3, LogOut, Users, Calendar, TrendingUp, Award, Zap, Shield, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import CryptoJS from 'crypto-js';
 import { format } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import emailjs from '@emailjs/browser';
 import axios from 'axios';
@@ -25,6 +26,7 @@ import AttendanceHistory from './dashboard/AttendanceHistory';
 import LateArrivalIndicator from './dashboard/LateArrivalIndicator';
 
 const FacultyDashboard = () => {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState(() => {
     const saved = localStorage.getItem('facultyClasses');
     return saved ? JSON.parse(saved) : [];
@@ -46,6 +48,7 @@ const FacultyDashboard = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState(null);
   const [lateStudents, setLateStudents] = useState([]);
+  const [userInfo, setUserInfo] = useState(null);
 
   const [newClass, setNewClass] = useState({
     name: '',
@@ -54,6 +57,16 @@ const FacultyDashboard = () => {
   });
 
   useEffect(() => {
+    // Load user info
+    const cachedUser = localStorage.getItem('userData');
+    if (cachedUser) {
+      try {
+        setUserInfo(JSON.parse(cachedUser));
+      } catch (e) {
+        console.error('Failed to parse user data');
+      }
+    }
+    
     // Remove default classes if present in localStorage
     const saved = localStorage.getItem('facultyClasses');
     if (saved) {
@@ -373,42 +386,194 @@ const FacultyDashboard = () => {
     };
   }, [selectedClass, showQR]);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100 py-4 sm:py-8 px-4">
-      <Toaster position="top-center" />
+  const handleSignOut = () => {
+    localStorage.removeItem('googleToken');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('lastRoute');
+    navigate('/');
+    toast.success('👋 Signed out successfully');
+  };
 
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
-          <motion.h1 
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className="text-2xl sm:text-3xl font-bold text-purple-400"
-          >
-            Faculty Dashboard
-          </motion.h1>
-          <div className="flex gap-3 w-full sm:w-auto">
+  // Calculate dashboard stats
+  const totalClasses = classes.length;
+  const activeSession = showQR ? 1 : 0;
+  const totalPresent = presentStudents.length;
+  const totalAbsent = absentStudents.length;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-gray-100 py-6 px-4 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-20 right-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+          animate={{
+            x: [0, -100, 0],
+            y: [0, 50, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+        <motion.div
+          className="absolute bottom-20 left-10 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
+          animate={{
+            x: [0, 100, 0],
+            y: [0, -50, 0],
+            scale: [1, 1.3, 1],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: '#fff',
+            borderRadius: '12px',
+            padding: '16px 24px',
+            fontSize: '15px',
+            fontWeight: '500',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+          },
+        }}
+      />
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Enhanced Header */}
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              {userInfo?.picture ? (
+                <motion.img 
+                  src={userInfo.picture} 
+                  alt="Profile" 
+                  className="w-16 h-16 rounded-full border-4 border-white shadow-xl"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-xl">
+                  {userInfo?.name?.charAt(0) || 'F'}
+                </div>
+              )}
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold text-white flex items-center">
+                  <Shield className="w-8 h-8 mr-3 text-purple-300" />
+                  Faculty Dashboard
+                </h1>
+                <p className="text-purple-200 text-sm sm:text-base mt-1">
+                  {userInfo?.name || 'Welcome, Professor'} • {userInfo?.email || ''}
+                </p>
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSignOut}
+              className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 border border-white/20"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </motion.button>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Calendar className="w-8 h-8 text-blue-300" />
+                <span className="text-3xl font-bold text-white">{totalClasses}</span>
+              </div>
+              <p className="text-purple-200 text-sm font-medium">Total Classes</p>
+            </motion.div>
+
+            <motion.div
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Activity className="w-8 h-8 text-green-300" />
+                <span className="text-3xl font-bold text-white">{activeSession}</span>
+              </div>
+              <p className="text-purple-200 text-sm font-medium">Active Sessions</p>
+            </motion.div>
+
+            <motion.div
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Users className="w-8 h-8 text-purple-300" />
+                <span className="text-3xl font-bold text-white">{totalPresent}</span>
+              </div>
+              <p className="text-purple-200 text-sm font-medium">Present Today</p>
+            </motion.div>
+
+            <motion.div
+              className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl p-4 shadow-xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              whileHover={{ scale: 1.05, y: -5 }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <Award className="w-8 h-8 text-white" />
+                <span className="text-3xl font-bold text-white">{totalAbsent}</span>
+              </div>
+              <p className="text-white text-sm font-medium">Absent Today</p>
+            </motion.div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 mt-6">
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowHistory(true)}
-              className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center text-sm sm:text-base flex-1 sm:flex-initial"
+              className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all flex items-center justify-center flex-1 border border-white/20 font-semibold"
             >
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
+              <BarChart3 className="w-5 h-5 mr-2" />
+              Analytics & Reports
             </motion.button>
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowAddModal(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center text-sm sm:text-base flex-1 sm:flex-initial"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl transition-all flex items-center justify-center flex-1 shadow-xl font-semibold"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Class
+              <Plus className="w-5 h-5 mr-2" />
+              Add New Class
             </motion.button>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           <ClassList 
             classes={classes}
             selectedClass={selectedClass}
