@@ -24,6 +24,8 @@ const StudentDashboard = () => {
   const qrReaderRef = useRef(null);
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
   const hasScannedRef = useRef(false);
 
   useEffect(() => {
@@ -139,20 +141,13 @@ const StudentDashboard = () => {
       // Create video element with all necessary attributes
       const videoEl = document.createElement('video');
       videoEl.id = 'qr-video';
-      videoEl.playsInline = true;
-      videoEl.autoplay = true;
-      videoEl.muted = true;
-      videoEl.style.cssText = `
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        background-color: #000;
-        z-index: 1;
-      `;
+      videoEl.setAttribute('playsinline', '');
+      videoEl.setAttribute('autoplay', '');
+      videoEl.setAttribute('muted', '');
+      videoEl.style.width = '100%';
+      videoEl.style.height = '100%';
+      videoEl.style.objectFit = 'cover';
+      videoEl.style.display = 'block';
       
       container.appendChild(videoEl);
       videoRef.current = videoEl;
@@ -175,12 +170,61 @@ const StudentDashboard = () => {
         // Attach stream to video element
         videoEl.srcObject = stream;
         
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          videoEl.onloadedmetadata = () => {
-            videoEl.play().then(resolve).catch(resolve);
+        // Force video to play and be visible
+        videoEl.onloadedmetadata = async () => {
+          try {
+            await videoEl.play();
+            // Hide loading and show scanning
+            setScanning(true);
+            setCameraStarted(true);
+          } catch (e) {
+            console.error('Play error:', e);
+          }
+        };
+
+        // Create canvas fallback to render frames on devices where <video> won't display
+        try {
+          const canvasEl = document.createElement('canvas');
+          canvasEl.id = 'qr-canvas';
+          canvasEl.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            z-index: 1;
+            background: transparent;
+          `;
+          // ensure video sits below canvas
+          videoEl.style.zIndex = 0;
+          canvasRef.current = canvasEl;
+          container.appendChild(canvasEl);
+
+          const ctx = canvasEl.getContext('2d');
+          const drawFrame = () => {
+            try {
+              if (videoEl.readyState >= 2) {
+                const vw = videoEl.videoWidth || container.clientWidth;
+                const vh = videoEl.videoHeight || container.clientHeight;
+                // size canvas to video aspect
+                if (canvasEl.width !== vw || canvasEl.height !== vh) {
+                  canvasEl.width = vw;
+                  canvasEl.height = vh;
+                }
+                ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+              }
+            } catch (e) {
+              // ignore draw errors
+            }
+            rafRef.current = requestAnimationFrame(drawFrame);
           };
-        });
+          rafRef.current = requestAnimationFrame(drawFrame);
+        } catch (e) {
+          // canvas fallback failed - continue without it
+          console.warn('Canvas fallback not available', e);
+        }
         
         // Initialize ZXing reader
         codeReaderRef.current = new BrowserQRCodeReader();
@@ -201,7 +245,6 @@ const StudentDashboard = () => {
           }
         );
         
-        setScanning(true);
         toast.success('📷 Camera is ready - point at QR code');
         
       } catch (err) {
@@ -313,8 +356,19 @@ const StudentDashboard = () => {
           const stream = videoRef.current.srcObject;
           if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
         } catch (e) { void e; }
-        videoRef.current.remove();
+        try {
+          videoRef.current.remove();
+        } catch (e) { void e; }
         videoRef.current = null;
+      }
+      // Stop canvas draw loop and remove canvas
+      if (rafRef.current) {
+        try { cancelAnimationFrame(rafRef.current); } catch (e) { void e; }
+        rafRef.current = null;
+      }
+      if (canvasRef.current) {
+        try { canvasRef.current.remove(); } catch (e) { void e; }
+        canvasRef.current = null;
       }
       setScanning(false);
     };
@@ -646,33 +700,38 @@ const StudentDashboard = () => {
             <div 
               id="qr-reader"
               ref={qrReaderRef}
-              className="relative w-full aspect-square max-w-[350px] sm:max-w-[450px] mx-auto rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 border-4 border-white/30 shadow-2xl flex items-center justify-center"
+              className="relative w-full aspect-square max-w-[350px] sm:max-w-[450px] mx-auto rounded-2xl overflow-hidden bg-black border-4 border-white/30 shadow-2xl"
+              style={{ position: 'relative' }}
             >
               {cameraStarted && !scanning && (
-                <div className="text-white text-center z-10">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="mx-auto mb-4"
-                  >
-                    <Camera className="w-16 h-16 text-purple-400" />
-                  </motion.div>
-                  <p className="text-lg font-medium">Initializing camera...</p>
+                <div className="absolute inset-0 flex items-center justify-center text-white text-center z-10 bg-black/50">
+                  <div>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="mx-auto mb-4"
+                    >
+                      <Camera className="w-16 h-16 text-purple-400" />
+                    </motion.div>
+                    <p className="text-lg font-medium">Initializing camera...</p>
+                  </div>
                 </div>
               )}
               {!cameraStarted && (
-                <div className="text-white text-center p-6 z-10">
-                  <motion.div
-                    animate={{ 
-                      scale: [1, 1.1, 1],
-                      opacity: [0.5, 1, 0.5]
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Camera className="w-20 h-20 mx-auto mb-4 text-purple-400" />
-                  </motion.div>
-                  <p className="text-lg font-medium mb-2">Ready to Scan</p>
-                  <p className="text-sm text-purple-200">Click the button below to activate camera</p>
+                <div className="absolute inset-0 flex items-center justify-center text-white text-center p-6 z-10">
+                  <div>
+                    <motion.div
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        opacity: [0.5, 1, 0.5]
+                      }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <Camera className="w-20 h-20 mx-auto mb-4 text-purple-400" />
+                    </motion.div>
+                    <p className="text-lg font-medium mb-2">Ready to Scan</p>
+                    <p className="text-sm text-purple-200">Click the button below to activate camera</p>
+                  </div>
                 </div>
               )}
               
