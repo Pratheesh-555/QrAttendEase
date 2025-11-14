@@ -252,10 +252,26 @@ const StudentDashboard = () => {
         setScanning(false);
         setCameraStarted(false);
         
-        // Stop any streams
-        if (videoRef.current?.srcObject) {
-          videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        // Stop any streams - defensive cleanup
+        try {
+          if (videoRef.current?.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => {
+              try { track.stop(); } catch (e) { void e; }
+            });
+          }
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+            videoRef.current.remove();
+            videoRef.current = null;
+          }
+        } catch (cleanupErr) {
+          console.error('Cleanup error:', cleanupErr);
         }
+        
+        // Reset refs
+        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        codeReaderRef.current = null;
         
         // Provide user-friendly error messages
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -325,6 +341,26 @@ const StudentDashboard = () => {
               console.error('Fallback camera error:', e);
               toast.error('📷 Failed to start camera: ' + (e.message || 'Unknown error'));
               setCameraStarted(false);
+              
+              // Cleanup fallback video
+              try {
+                if (videoRef.current?.srcObject) {
+                  videoRef.current.srcObject.getTracks().forEach(t => {
+                    try { t.stop(); } catch (err) { void err; }
+                  });
+                }
+                if (videoRef.current) {
+                  videoRef.current.srcObject = null;
+                  videoRef.current.remove();
+                  videoRef.current = null;
+                }
+                if (codeReaderRef.current) {
+                  try { codeReaderRef.current.reset(); } catch (err) { void err; }
+                  codeReaderRef.current = null;
+                }
+              } catch (cleanupErr) {
+                void cleanupErr;
+              }
             }
           }, 500);
           return;
@@ -703,7 +739,7 @@ const StudentDashboard = () => {
               className="relative w-full aspect-square max-w-[350px] sm:max-w-[450px] mx-auto rounded-2xl overflow-hidden bg-black border-4 border-white/30 shadow-2xl"
               style={{ position: 'relative' }}
             >
-              {cameraStarted && !scanning && (
+              {cameraStarted && !scanning && !videoRef.current?.srcObject && (
                 <div className="absolute inset-0 flex items-center justify-center text-white text-center z-10 bg-black/50">
                   <div>
                     <motion.div
@@ -736,7 +772,7 @@ const StudentDashboard = () => {
               )}
               
               {/* Enhanced Scanning overlay with corner brackets */}
-              {scanning && !scanSuccess && (
+              {scanning && !scanSuccess && videoRef.current?.srcObject && (
                 <div className="absolute inset-0 pointer-events-none z-20">
                   {/* Animated corner brackets */}
                   <motion.div 
