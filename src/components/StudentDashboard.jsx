@@ -138,34 +138,25 @@ const StudentDashboard = () => {
       const container = qrReaderRef.current;
       container.innerHTML = '';
       
-      // Create video element with all necessary attributes
+      // Create video element
       const videoEl = document.createElement('video');
-      videoEl.id = 'qr-video';
-      videoEl.setAttribute('playsinline', '');
-      videoEl.setAttribute('autoplay', '');
-      videoEl.setAttribute('muted', '');
-      videoEl.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        background-color: #000;
-      `;
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('autoplay', 'true');
+      videoEl.setAttribute('muted', 'true');
+      videoEl.style.width = '100%';
+      videoEl.style.height = '100%';
+      videoEl.style.objectFit = 'cover';
       
       container.appendChild(videoEl);
       videoRef.current = videoEl;
 
       try {
-        toast.success('📷 Requesting camera access...');
+        toast.loading('📷 Starting camera...');
         
-        // Get camera stream with native getUserMedia
+        // Get camera stream
         const constraints = {
           video: {
-            facingMode: { ideal: 'environment' }, // Prefer rear camera
+            facingMode: { ideal: 'environment' },
             width: { ideal: 1280 },
             height: { ideal: 720 }
           },
@@ -173,33 +164,21 @@ const StudentDashboard = () => {
         };
         
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        // Attach stream to video element
         videoEl.srcObject = stream;
         
-        // Wait for video to load metadata
-        await new Promise((resolve) => {
-          if (videoEl.readyState >= 2) {
-            resolve();
-          } else {
-            videoEl.onloadedmetadata = () => resolve();
-          }
-        });
-        
-        // Play the video
-        await videoEl.play();
-        
-        // Small delay to ensure video is rendering
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Verify video is actually playing
-        if (videoEl.paused) {
-          await videoEl.play();
-        }
-        
-        // Mark as scanning and show success
-        setScanning(true);
-        toast.success('📷 Camera is ready - point at QR code');
+        // Wait for video to start playing
+        videoEl.onloadedmetadata = () => {
+          videoEl.play().then(() => {
+            setScanning(true);
+            toast.dismiss();
+            toast.success('📷 Camera ready!');
+          }).catch(err => {
+            console.error('Play error:', err);
+            setScanning(true); // Continue anyway
+            toast.dismiss();
+            toast.success('📷 Camera ready!');
+          });
+        };
         
         // Initialize ZXing reader
         codeReaderRef.current = new BrowserQRCodeReader();
@@ -263,21 +242,12 @@ const StudentDashboard = () => {
               
               container.innerHTML = '';
               const videoEl2 = document.createElement('video');
-              videoEl2.id = 'qr-video-fallback';
-              videoEl2.setAttribute('playsinline', '');
-              videoEl2.setAttribute('autoplay', '');
-              videoEl2.setAttribute('muted', '');
-              videoEl2.style.cssText = `
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                display: block;
-                position: absolute;
-                top: 0;
-                left: 0;
-                z-index: 1;
-                background-color: #000;
-              `;
+              videoEl2.setAttribute('playsinline', 'true');
+              videoEl2.setAttribute('autoplay', 'true');
+              videoEl2.setAttribute('muted', 'true');
+              videoEl2.style.width = '100%';
+              videoEl2.style.height = '100%';
+              videoEl2.style.objectFit = 'cover';
               container.appendChild(videoEl2);
               videoRef.current = videoEl2;
               
@@ -288,18 +258,17 @@ const StudentDashboard = () => {
               });
               
               videoEl2.srcObject = stream;
-              
-              // Wait for metadata and play
-              await new Promise((resolve) => {
-                if (videoEl2.readyState >= 2) {
-                  resolve();
-                } else {
-                  videoEl2.onloadedmetadata = () => resolve();
-                }
-              });
-              
-              await videoEl2.play();
-              await new Promise(resolve => setTimeout(resolve, 200));
+              videoEl2.onloadedmetadata = () => {
+                videoEl2.play().then(() => {
+                  setCameraStarted(true);
+                  setScanning(true);
+                  toast.success('📷 Front camera ready!');
+                }).catch(() => {
+                  setCameraStarted(true);
+                  setScanning(true);
+                  toast.success('📷 Front camera ready!');
+                });
+              };
               
               codeReaderRef.current = new BrowserQRCodeReader();
               codeReaderRef.current.decodeFromVideoElement(
@@ -313,10 +282,6 @@ const StudentDashboard = () => {
                   }
                 }
               );
-              
-              setCameraStarted(true);
-              setScanning(true);
-              toast.success('📷 Front camera is ready');
             } catch (e) {
               console.error('Fallback camera error:', e);
               toast.error('📷 Failed to start camera: ' + (e.message || 'Unknown error'));
@@ -400,13 +365,10 @@ const StudentDashboard = () => {
     };
 
     if (cameraStarted) {
-      timeoutId = setTimeout(() => {
-        startScanner();
-      }, 300);
+      startScanner();
     }
 
     return () => {
-      clearTimeout(timeoutId);
       stopScanner();
     };
   }, [userInfo, cameraStarted, scanSuccess]);
