@@ -291,13 +291,13 @@ const FacultyDashboard = () => {
       setSessionStartTime(new Date()); // Track session start time
       setAbsentStudents(selectedClass.studentList.map(s => s.name || s));
       
-      // Generate QR code after DOM update (increased timeout for reliability)
+      // Generate QR code after DOM update
       setTimeout(() => {
         const qrGenerated = generateQRCode(selectedClass);
         if (!qrGenerated) {
           toast.error('Failed to generate QR code. Please try clicking "Refresh QR Code".');
         }
-      }, 300);
+      }, 50);
       
       toast.success('Attendance session started');
     } catch (error) {
@@ -313,9 +313,10 @@ const FacultyDashboard = () => {
 
   const handleQRClick = useCallback(() => {
     setShowQRModal(true);
-    setTimeout(() => {
+    // Use requestAnimationFrame for immediate but smooth rendering
+    requestAnimationFrame(() => {
       generateQRCode(selectedClass, 'qr-code-modal',false);
-    }, 100);
+    });
   }, [selectedClass, generateQRCode]);
 
   const handleMarkPresent = useCallback((student) => {

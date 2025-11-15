@@ -144,10 +144,17 @@ const StudentDashboard = () => {
       videoEl.setAttribute('playsinline', '');
       videoEl.setAttribute('autoplay', '');
       videoEl.setAttribute('muted', '');
-      videoEl.style.width = '100%';
-      videoEl.style.height = '100%';
-      videoEl.style.objectFit = 'cover';
-      videoEl.style.display = 'block';
+      videoEl.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        background-color: #000;
+      `;
       
       container.appendChild(videoEl);
       videoRef.current = videoEl;
@@ -170,61 +177,29 @@ const StudentDashboard = () => {
         // Attach stream to video element
         videoEl.srcObject = stream;
         
-        // Force video to play and be visible
-        videoEl.onloadedmetadata = async () => {
-          try {
-            await videoEl.play();
-            // Hide loading and show scanning
-            setScanning(true);
-            setCameraStarted(true);
-          } catch (e) {
-            console.error('Play error:', e);
+        // Wait for video to load metadata
+        await new Promise((resolve) => {
+          if (videoEl.readyState >= 2) {
+            resolve();
+          } else {
+            videoEl.onloadedmetadata = () => resolve();
           }
-        };
-
-        // Create canvas fallback to render frames on devices where <video> won't display
-        try {
-          const canvasEl = document.createElement('canvas');
-          canvasEl.id = 'qr-canvas';
-          canvasEl.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            z-index: 1;
-            background: transparent;
-          `;
-          // ensure video sits below canvas
-          videoEl.style.zIndex = 0;
-          canvasRef.current = canvasEl;
-          container.appendChild(canvasEl);
-
-          const ctx = canvasEl.getContext('2d');
-          const drawFrame = () => {
-            try {
-              if (videoEl.readyState >= 2) {
-                const vw = videoEl.videoWidth || container.clientWidth;
-                const vh = videoEl.videoHeight || container.clientHeight;
-                // size canvas to video aspect
-                if (canvasEl.width !== vw || canvasEl.height !== vh) {
-                  canvasEl.width = vw;
-                  canvasEl.height = vh;
-                }
-                ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-              }
-            } catch (e) {
-              // ignore draw errors
-            }
-            rafRef.current = requestAnimationFrame(drawFrame);
-          };
-          rafRef.current = requestAnimationFrame(drawFrame);
-        } catch (e) {
-          // canvas fallback failed - continue without it
-          console.warn('Canvas fallback not available', e);
+        });
+        
+        // Play the video
+        await videoEl.play();
+        
+        // Small delay to ensure video is rendering
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verify video is actually playing
+        if (videoEl.paused) {
+          await videoEl.play();
         }
+        
+        // Mark as scanning and show success
+        setScanning(true);
+        toast.success('📷 Camera is ready - point at QR code');
         
         // Initialize ZXing reader
         codeReaderRef.current = new BrowserQRCodeReader();
@@ -244,8 +219,6 @@ const StudentDashboard = () => {
             }
           }
         );
-        
-        toast.success('📷 Camera is ready - point at QR code');
         
       } catch (err) {
         console.error('❌ Camera error:', err);
@@ -291,19 +264,19 @@ const StudentDashboard = () => {
               container.innerHTML = '';
               const videoEl2 = document.createElement('video');
               videoEl2.id = 'qr-video-fallback';
-              videoEl2.playsInline = true;
-              videoEl2.autoplay = true;
-              videoEl2.muted = true;
+              videoEl2.setAttribute('playsinline', '');
+              videoEl2.setAttribute('autoplay', '');
+              videoEl2.setAttribute('muted', '');
               videoEl2.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
                 display: block;
-                background-color: #000;
+                position: absolute;
+                top: 0;
+                left: 0;
                 z-index: 1;
+                background-color: #000;
               `;
               container.appendChild(videoEl2);
               videoRef.current = videoEl2;
@@ -315,11 +288,18 @@ const StudentDashboard = () => {
               });
               
               videoEl2.srcObject = stream;
+              
+              // Wait for metadata and play
               await new Promise((resolve) => {
-                videoEl2.onloadedmetadata = () => {
-                  videoEl2.play().then(resolve).catch(resolve);
-                };
+                if (videoEl2.readyState >= 2) {
+                  resolve();
+                } else {
+                  videoEl2.onloadedmetadata = () => resolve();
+                }
               });
+              
+              await videoEl2.play();
+              await new Promise(resolve => setTimeout(resolve, 200));
               
               codeReaderRef.current = new BrowserQRCodeReader();
               codeReaderRef.current.decodeFromVideoElement(
@@ -385,28 +365,38 @@ const StudentDashboard = () => {
       // Stop video stream
       if (videoRef.current) {
         try {
-          if (videoRef.current.srcObject) {
-            videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-          }
-          // stop video tracks
           const stream = videoRef.current.srcObject;
-          if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
-        } catch (e) { void e; }
+          if (stream && stream.getTracks) {
+            stream.getTracks().forEach(track => {
+              try {
+                track.stop();
+              } catch (e) {
+                void e;
+              }
+            });
+          }
+          videoRef.current.srcObject = null;
+        } catch (e) {
+          void e;
+        }
         try {
           videoRef.current.remove();
-        } catch (e) { void e; }
+        } catch (e) {
+          void e;
+        }
         videoRef.current = null;
       }
-      // Stop canvas draw loop and remove canvas
+      // Cleanup animation frame if any
       if (rafRef.current) {
-        try { cancelAnimationFrame(rafRef.current); } catch (e) { void e; }
+        try {
+          cancelAnimationFrame(rafRef.current);
+        } catch (e) {
+          void e;
+        }
         rafRef.current = null;
       }
-      if (canvasRef.current) {
-        try { canvasRef.current.remove(); } catch (e) { void e; }
-        canvasRef.current = null;
-      }
       setScanning(false);
+      setCameraStarted(false);
     };
 
     if (cameraStarted) {
@@ -772,7 +762,7 @@ const StudentDashboard = () => {
               )}
               
               {/* Enhanced Scanning overlay with corner brackets */}
-              {scanning && !scanSuccess && videoRef.current?.srcObject && (
+              {scanning && !scanSuccess && (
                 <div className="absolute inset-0 pointer-events-none z-20">
                   {/* Animated corner brackets */}
                   <motion.div 
