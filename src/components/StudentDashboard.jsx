@@ -138,14 +138,20 @@ const StudentDashboard = () => {
       const container = qrReaderRef.current;
       container.innerHTML = '';
       
-      // Create video element
+      // Create video element with proper visibility
       const videoEl = document.createElement('video');
       videoEl.setAttribute('playsinline', 'true');
       videoEl.setAttribute('autoplay', 'true');
       videoEl.setAttribute('muted', 'true');
+      videoEl.style.position = 'absolute';
+      videoEl.style.top = '0';
+      videoEl.style.left = '0';
       videoEl.style.width = '100%';
       videoEl.style.height = '100%';
       videoEl.style.objectFit = 'cover';
+      videoEl.style.display = 'block';
+      videoEl.style.backgroundColor = '#000';
+      videoEl.style.zIndex = '1';
       
       container.appendChild(videoEl);
       videoRef.current = videoEl;
@@ -245,9 +251,15 @@ const StudentDashboard = () => {
               videoEl2.setAttribute('playsinline', 'true');
               videoEl2.setAttribute('autoplay', 'true');
               videoEl2.setAttribute('muted', 'true');
+              videoEl2.style.position = 'absolute';
+              videoEl2.style.top = '0';
+              videoEl2.style.left = '0';
               videoEl2.style.width = '100%';
               videoEl2.style.height = '100%';
               videoEl2.style.objectFit = 'cover';
+              videoEl2.style.display = 'block';
+              videoEl2.style.backgroundColor = '#000';
+              videoEl2.style.zIndex = '1';
               container.appendChild(videoEl2);
               videoRef.current = videoEl2;
               
