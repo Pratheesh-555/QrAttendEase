@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, CheckCircle, XCircle, AlertCircle, History, Clock, LogOut, Award, TrendingUp, Calendar, QrCode, Zap, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -357,7 +356,10 @@ const StudentDashboard = () => {
           void e;
         }
         try {
-          videoRef.current.remove();
+          // Check if element has a parent before removing
+          if (videoRef.current && videoRef.current.parentNode) {
+            videoRef.current.parentNode.removeChild(videoRef.current);
+          }
         } catch (e) {
           void e;
         }
@@ -484,25 +486,14 @@ const StudentDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-purple-400"></div>
-            <Camera className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-purple-400" />
-          </div>
-        </motion.div>
-        <motion.p 
-          className="text-purple-200 text-lg mt-6 font-medium"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-blue-600"></div>
+          <Camera className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-blue-600" />
+        </div>
+        <p className="text-gray-700 text-lg mt-6 font-medium">
           Loading your dashboard...
-        </motion.p>
+        </p>
       </div>
     );
   }
@@ -514,13 +505,14 @@ const StudentDashboard = () => {
         toastOptions={{
           duration: 4000,
           style: {
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: '#fff',
-            borderRadius: '12px',
-            padding: '16px 24px',
-            fontSize: '15px',
+            background: '#fff',
+            color: '#1e293b',
+            borderRadius: '8px',
+            padding: '12px 20px',
+            fontSize: '14px',
             fontWeight: '500',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            border: '1px solid #e2e8f0',
           },
           success: {
             iconTheme: {
@@ -537,162 +529,97 @@ const StudentDashboard = () => {
         }}
       />
       
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 py-6 px-4 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            className="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-            animate={{
-              x: [0, 100, 0],
-              y: [0, -50, 0],
-              scale: [1, 1.2, 1],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute bottom-20 right-10 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-            animate={{
-              x: [0, -100, 0],
-              y: [0, 50, 0],
-              scale: [1, 1.3, 1],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-        </div>
-
-        <div className="max-w-4xl mx-auto relative z-10">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-stone-50 to-slate-100 py-6 px-4">
+        <div className="max-w-4xl mx-auto">
           {/* Header with user info and sign out */}
-          <motion.div
-            className="mb-6"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-gray-300 p-6 mb-6">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 {userInfo.picture ? (
-                  <motion.img 
+                  <img 
                     src={userInfo.picture} 
                     alt="Profile" 
-                    className="w-16 h-16 rounded-full border-4 border-white shadow-xl"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
+                    className="w-14 h-14 rounded-full border-2 border-blue-300 shadow-sm"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-xl">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-xl shadow-md">
                     {userInfo.name?.charAt(0) || 'S'}
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white">
-                    Hello, {userInfo.name?.split(' ')[0] || 'Student'}! 👋
+                  <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <Award className="w-6 h-6 mr-2 text-blue-600" />
+                    {userInfo.name?.split(' ')[0] || 'Student'} Portal
                   </h1>
-                  <p className="text-purple-200 text-sm sm:text-base">{userInfo.email}</p>
+                  <p className="text-gray-600 text-sm">{userInfo.email}</p>
                 </div>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={handleSignOut}
-                className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 border border-white/20"
+                className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 flex items-center space-x-2"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Sign Out</span>
-              </motion.button>
+              </button>
             </div>
-          </motion.div>
+          </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-blue-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Calendar className="w-8 h-8 text-blue-300" />
-                <span className="text-3xl font-bold text-white">{stats.total}</span>
+                <div className="bg-blue-50 p-2 rounded-lg">
+                  <Calendar className="w-6 h-6 text-blue-600" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">Total Classes</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">Total Classes</p>
+            </div>
 
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-green-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <CheckCircle className="w-8 h-8 text-green-300" />
-                <span className="text-3xl font-bold text-white">{stats.present}</span>
+                <div className="bg-green-50 p-2 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{stats.present}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">On Time</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">On Time</p>
+            </div>
 
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-amber-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Clock className="w-8 h-8 text-yellow-300" />
-                <span className="text-3xl font-bold text-white">{stats.late}</span>
+                <div className="bg-amber-50 p-2 rounded-lg">
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{stats.late}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">Late Arrivals</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">Late Arrivals</p>
+            </div>
 
-            <motion.div
-              className="bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl p-4 shadow-xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-4 shadow-md border-2 border-blue-500">
               <div className="flex items-center justify-between mb-2">
-                <TrendingUp className="w-8 h-8 text-white" />
-                <span className="text-3xl font-bold text-white">{stats.percentage}%</span>
+                <div className="bg-blue-500/30 p-2 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold text-white">{stats.percentage}%</span>
               </div>
-              <p className="text-white text-sm font-medium">Attendance Rate</p>
-            </motion.div>
+              <p className="text-blue-50 text-sm font-medium">Attendance Rate</p>
+            </div>
           </div>
 
           {/* Main QR Scanner Card */}
-          <motion.div 
-            className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 sm:p-8 mb-6 border border-white/20"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md p-6 sm:p-8 mb-6 border border-slate-300">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white flex items-center">
-                <motion.div
-                  animate={{ rotate: scanning ? 360 : 0 }}
-                  transition={{ duration: 2, repeat: scanning ? Infinity : 0, ease: "linear" }}
-                >
-                  <QrCode className="w-8 h-8 mr-3 text-purple-300" />
-                </motion.div>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                <div className="bg-blue-100 p-2 rounded-lg mr-2">
+                  <QrCode className="w-6 h-6 text-blue-600" />
+                </div>
                 QR Scanner
               </h2>
               {scanSuccess && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 500 }}
-                >
-                  <CheckCircle className="w-10 h-10 text-green-400 drop-shadow-lg" />
-                </motion.div>
+                <div className="bg-green-100 p-2 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
               )}
             </div>
           
@@ -700,19 +627,15 @@ const StudentDashboard = () => {
             <div 
               id="qr-reader"
               ref={qrReaderRef}
-              className="relative w-full aspect-square max-w-[350px] sm:max-w-[450px] mx-auto rounded-2xl overflow-hidden bg-black border-4 border-white/30 shadow-2xl"
+              className="relative w-full aspect-square max-w-[350px] sm:max-w-[450px] mx-auto rounded-2xl overflow-hidden bg-gray-900 border-4 border-blue-200 shadow-2xl"
               style={{ position: 'relative' }}
             >
               {cameraStarted && !scanning && !videoRef.current?.srcObject && (
-                <div className="absolute inset-0 flex items-center justify-center text-white text-center z-10 bg-black/50">
+                <div className="absolute inset-0 flex items-center justify-center text-white text-center z-10 bg-gradient-to-br from-blue-900/90 to-indigo-900/90 backdrop-blur-sm">
                   <div>
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="mx-auto mb-4"
-                    >
-                      <Camera className="w-16 h-16 text-purple-400" />
-                    </motion.div>
+                    <div className="mx-auto mb-4">
+                      <Camera className="w-16 h-16 text-blue-400" />
+                    </div>
                     <p className="text-lg font-medium">Initializing camera...</p>
                   </div>
                 </div>
@@ -720,289 +643,169 @@ const StudentDashboard = () => {
               {!cameraStarted && (
                 <div className="absolute inset-0 flex items-center justify-center text-white text-center p-6 z-10">
                   <div>
-                    <motion.div
-                      animate={{ 
-                        scale: [1, 1.1, 1],
-                        opacity: [0.5, 1, 0.5]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <Camera className="w-20 h-20 mx-auto mb-4 text-purple-400" />
-                    </motion.div>
+                    <div>
+                      <Camera className="w-20 h-20 mx-auto mb-4 text-blue-400" />
+                    </div>
                     <p className="text-lg font-medium mb-2">Ready to Scan</p>
-                    <p className="text-sm text-purple-200">Click the button below to activate camera</p>
+                    <p className="text-sm text-gray-300">Click the button below to activate camera</p>
                   </div>
                 </div>
               )}
               
-              {/* Enhanced Scanning overlay with corner brackets */}
+              {/* Scanning overlay with corner brackets */}
               {scanning && !scanSuccess && (
                 <div className="absolute inset-0 pointer-events-none z-20">
-                  {/* Animated corner brackets */}
-                  <motion.div 
-                    className="absolute top-6 left-6 w-12 h-12 border-t-4 border-l-4 border-purple-400 rounded-tl-2xl"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                  />
-                  <motion.div 
-                    className="absolute top-6 right-6 w-12 h-12 border-t-4 border-r-4 border-purple-400 rounded-tr-2xl"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                  />
-                  <motion.div 
-                    className="absolute bottom-6 left-6 w-12 h-12 border-b-4 border-l-4 border-purple-400 rounded-bl-2xl"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                  />
-                  <motion.div 
-                    className="absolute bottom-6 right-6 w-12 h-12 border-b-4 border-r-4 border-purple-400 rounded-br-2xl"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: 0.3 }}
-                  />
+                  {/* Corner brackets */}
+                  <div className="absolute top-6 left-6 w-12 h-12 border-t-4 border-l-4 border-blue-500 rounded-tl-2xl" />
+                  <div className="absolute top-6 right-6 w-12 h-12 border-t-4 border-r-4 border-blue-500 rounded-tr-2xl" />
+                  <div className="absolute bottom-6 left-6 w-12 h-12 border-b-4 border-l-4 border-blue-500 rounded-bl-2xl" />
+                  <div className="absolute bottom-6 right-6 w-12 h-12 border-b-4 border-r-4 border-blue-500 rounded-br-2xl" />
                   
-                  {/* Scanning line with glow effect */}
-                  <motion.div 
-                    className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-400 to-transparent shadow-[0_0_20px_rgba(168,85,247,0.9)]"
-                    animate={{ top: ["10%", "90%"] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 2,
-                      ease: "linear",
-                    }}
-                  />
-                  
-                  {/* Pulsing center indicator */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <motion.div
-                      className="w-16 h-16 border-4 border-purple-400 rounded-full"
-                      animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [1, 0.5, 1]
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Scanning text with badge */}
+                  {/* Scanning text badge */}
                   <div className="absolute bottom-12 left-0 right-0 flex justify-center">
-                    <motion.div
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 rounded-full backdrop-blur-sm shadow-lg border-2 border-white/30"
-                      animate={{ 
-                        boxShadow: [
-                          "0 0 20px rgba(168,85,247,0.5)",
-                          "0 0 40px rgba(168,85,247,0.8)",
-                          "0 0 20px rgba(168,85,247,0.5)"
-                        ]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
+                    <div className="bg-blue-600 px-6 py-3 rounded-full shadow-lg border border-blue-500">
                       <div className="flex items-center space-x-2">
                         <Zap className="w-5 h-5 text-white" />
-                        <span className="text-white font-bold text-sm sm:text-base">
+                        <span className="text-white font-medium text-sm sm:text-base">
                           Scanning for QR code...
                         </span>
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Success overlay */}
               {scanSuccess && (
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-br from-green-500/90 to-emerald-600/90 flex items-center justify-center z-30"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200 }}
-                >
+                <div className="absolute inset-0 bg-green-500/90 flex items-center justify-center z-30">
                   <div className="text-center">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1, rotate: 360 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
-                    >
-                      <CheckCircle className="w-24 h-24 mx-auto mb-4 text-white drop-shadow-2xl" />
-                    </motion.div>
-                    <motion.h3
-                      className="text-2xl font-bold text-white mb-2"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
+                    <div>
+                      <CheckCircle className="w-24 h-24 mx-auto mb-4 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">
                       QR Code Detected!
-                    </motion.h3>
-                    <motion.p
-                      className="text-white/90"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
+                    </h3>
+                    <p className="text-white">
                       Click "Mark Present" below
-                    </motion.p>
+                    </p>
                   </div>
-                </motion.div>
+                </div>
               )}
             </div>
             
             {/* Camera control button */}
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleOpenCamera}
-              className={`w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-xl flex items-center justify-center space-x-3 ${cameraStarted ? 'opacity-50 cursor-not-allowed' : ''} transition-all`}
+              className={`w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 ${cameraStarted ? 'opacity-50 cursor-not-allowed' : ''} transition-colors`}
               disabled={cameraStarted}
             >
-              <Camera className="w-6 h-6" />
+              <Camera className="w-5 h-5" />
               <span>{cameraStarted ? 'Camera Active' : 'Open Camera'}</span>
-              {cameraStarted && <Shield className="w-5 h-5 animate-pulse" />}
-            </motion.button>
+            </button>
           </div>
           
           {/* Success message and action button */}
-          <AnimatePresence>
-            {scanSuccess && (
-              <motion.div 
-                className="mt-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <motion.div
-                  className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 mb-4 shadow-xl"
-                  animate={{
-                    boxShadow: [
-                      "0 10px 40px rgba(16, 185, 129, 0.3)",
-                      "0 10px 60px rgba(16, 185, 129, 0.5)",
-                      "0 10px 40px rgba(16, 185, 129, 0.3)"
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <div className="flex items-center mb-3">
-                    <CheckCircle className="w-6 h-6 text-white mr-2" />
-                    <h3 className="text-xl font-bold text-white">Ready to Submit!</h3>
+          {scanSuccess && (
+            <div className="mt-6">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-4">
+                <div className="flex items-center mb-3">
+                  <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900">Ready to Submit!</h3>
+                </div>
+                {isLate && (
+                  <div className="flex items-center bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 mr-2" />
+                    <p className="text-amber-900 text-sm">
+                      You are late! Please arrive on time next session.
+                    </p>
                   </div>
-                  {isLate && (
-                    <div className="flex items-center bg-yellow-500/20 rounded-lg p-3 mb-3">
-                      <AlertCircle className="w-5 h-5 text-yellow-300 mr-2" />
-                      <p className="text-white text-sm">
-                        You are late! Please arrive on time next session.
-                      </p>
-                    </div>
+                )}
+                <button
+                  onClick={handleMarkPresent}
+                  disabled={submitting}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Mark Present</span>
+                    </>
                   )}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleMarkPresent}
-                    disabled={submitting}
-                    className="w-full bg-white text-green-600 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
-                        <span>Submitting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-6 h-6" />
-                        <span>Mark Present</span>
-                      </>
-                    )}
-                  </motion.button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          </motion.div>
+                </button>
+              </div>
+            </div>
+          )}
+          </div>
 
           {/* Attendance History Section */}
           {attendanceHistory.length > 0 && (
-            <motion.div
-              className="bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-md p-6 sm:p-8 border border-slate-300">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-white flex items-center">
-                  <History className="w-7 h-7 mr-3 text-purple-300" />
+                <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                  <div className="bg-blue-100 p-2 rounded-lg mr-2">
+                    <History className="w-5 h-5 text-blue-600" />
+                  </div>
                   Recent Attendance
                 </h3>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all text-sm font-medium"
+                  className="text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg text-sm font-medium"
                 >
                   {showHistory ? 'Hide' : 'Show'} All
-                </motion.button>
+                </button>
               </div>
               
-              <AnimatePresence>
-                {showHistory && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="space-y-3"
-                  >
-                    {attendanceHistory.map((record, idx) => (
-                      <motion.div
-                        key={idx}
-                        className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        whileHover={{ x: 5 }}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {record.isLate ? (
-                              <div className="bg-yellow-500/20 p-2 rounded-lg">
-                                <AlertCircle className="w-5 h-5 text-yellow-300" />
-                              </div>
-                            ) : (
-                              <div className="bg-green-500/20 p-2 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-green-300" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-white font-semibold">{record.className}</p>
-                              <p className="text-purple-200 text-sm">
-                                {new Date(record.timestamp).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </p>
+              {showHistory && (
+                <div className="space-y-3">
+                  {attendanceHistory.map((record, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          {record.isLate ? (
+                            <div className="bg-yellow-100 p-2 rounded-lg">
+                              <AlertCircle className="w-5 h-5 text-yellow-600" />
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`font-bold ${record.isLate ? 'text-yellow-300' : 'text-green-300'}`}>
-                              {record.isLate ? 'Late' : 'On Time'}
-                            </p>
-                            <p className="text-purple-200 text-sm">
-                              {new Date(record.timestamp).toLocaleTimeString('en-US', {
-                                hour: '2-digit',
-                                minute: '2-digit'
+                          ) : (
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-gray-900 font-semibold">{record.className}</p>
+                            <p className="text-gray-500 text-sm">
+                              {new Date(record.timestamp).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
                               })}
                             </p>
                           </div>
                         </div>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+                        <div className="text-right">
+                          <p className={`font-bold ${record.isLate ? 'text-yellow-600' : 'text-green-600'}`}>
+                            {record.isLate ? 'Late' : 'On Time'}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            {new Date(record.timestamp).toLocaleTimeString('en-US', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -2,7 +2,6 @@ import { useCallback, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { toast } from 'react-hot-toast'; 
 import { Plus, List, BarChart3, LogOut, Users, Calendar, TrendingUp, Award, Zap, Shield, Activity } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import CryptoJS from 'crypto-js';
 import { format } from 'date-fns';
@@ -193,14 +192,11 @@ const FacultyDashboard = () => {
   const handleClassSelection = useCallback((cls) => {
     setLoading(true);
     setSelectedClass(cls);
-    
-    setTimeout(() => {
-      setShowQR(false);
-      setPresentStudents([]);
-      setAbsentStudents([]);
-      setLoading(false);
-      toast.success(`${cls.name} selected`);
-    }, 300);
+    setShowQR(false);
+    setPresentStudents([]);
+    setAbsentStudents([]);
+    setLoading(false);
+    toast.success(`${cls.name} selected`);
   }, []);
 
   const readExcelFile = useCallback(async (file) => {
@@ -252,7 +248,7 @@ const FacultyDashboard = () => {
     }
   }, [selectedClass, readExcelFile]);
 
-  const { getRootProps, getInputProps } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -291,13 +287,13 @@ const FacultyDashboard = () => {
       setSessionStartTime(new Date()); // Track session start time
       setAbsentStudents(selectedClass.studentList.map(s => s.name || s));
       
-      // Generate QR code after DOM update
-      setTimeout(() => {
+      // Generate QR code immediately using requestAnimationFrame
+      requestAnimationFrame(() => {
         const qrGenerated = generateQRCode(selectedClass);
         if (!qrGenerated) {
           toast.error('Failed to generate QR code. Please try clicking "Refresh QR Code".');
         }
-      }, 50);
+      });
       
       toast.success('Attendance session started');
     } catch (error) {
@@ -402,177 +398,122 @@ const FacultyDashboard = () => {
   const totalAbsent = absentStudents.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-gray-100 py-6 px-4 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-20 right-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-          animate={{
-            x: [0, -100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.div
-          className="absolute bottom-20 left-10 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20"
-          animate={{
-            x: [0, 100, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-stone-50 to-slate-100 text-gray-900 py-6 px-4">
       <Toaster 
         position="top-center"
         toastOptions={{
           duration: 4000,
           style: {
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: '#fff',
-            borderRadius: '12px',
+            background: '#fff',
+            color: '#1f2937',
+            borderRadius: '8px',
             padding: '16px 24px',
             fontSize: '15px',
             fontWeight: '500',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
           },
         }}
       />
 
-      <div className="max-w-7xl mx-auto relative z-10">
-        {/* Enhanced Header */}
-        <motion.div 
-          className="mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-gray-300 p-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {userInfo?.picture ? (
-                <motion.img 
+                <img 
                   src={userInfo.picture} 
                   alt="Profile" 
-                  className="w-16 h-16 rounded-full border-4 border-white shadow-xl"
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
+                  className="w-16 h-16 rounded-full border-2 border-blue-300 shadow-sm"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-xl">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-2xl border-2 border-blue-300 shadow-md">
                   {userInfo?.name?.charAt(0) || 'F'}
                 </div>
               )}
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-white flex items-center">
-                  <Shield className="w-8 h-8 mr-3 text-purple-300" />
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 flex items-center">
+                  <div className="bg-blue-100 p-2 rounded-lg mr-2">
+                    <Shield className="w-7 h-7 text-blue-600" />
+                  </div>
                   Faculty Dashboard
                 </h1>
-                <p className="text-purple-200 text-sm sm:text-base mt-1">
+                <p className="text-gray-600 text-sm sm:text-base mt-1">
                   {userInfo?.name || 'Welcome, Professor'} • {userInfo?.email || ''}
                 </p>
               </div>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={handleSignOut}
-              className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all flex items-center space-x-2 border border-white/20"
+              className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 flex items-center space-x-2 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
-            </motion.button>
+            </button>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-blue-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Calendar className="w-8 h-8 text-blue-300" />
-                <span className="text-3xl font-bold text-white">{totalClasses}</span>
+                <div className="bg-blue-50 p-2 rounded-lg">
+                  <Calendar className="w-7 h-7 text-blue-600" />
+                </div>
+                <span className="text-3xl font-bold text-gray-900">{totalClasses}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">Total Classes</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">Total Classes</p>
+            </div>
 
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-green-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Activity className="w-8 h-8 text-green-300" />
-                <span className="text-3xl font-bold text-white">{activeSession}</span>
+                <div className="bg-green-50 p-2 rounded-lg">
+                  <Activity className="w-7 h-7 text-green-600" />
+                </div>
+                <span className="text-3xl font-bold text-gray-900">{activeSession}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">Active Sessions</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">Active Sessions</p>
+            </div>
 
-            <motion.div
-              className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 border border-white/20"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-blue-300 transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Users className="w-8 h-8 text-purple-300" />
-                <span className="text-3xl font-bold text-white">{totalPresent}</span>
+                <div className="bg-blue-50 p-2 rounded-lg">
+                  <Users className="w-7 h-7 text-blue-600" />
+                </div>
+                <span className="text-3xl font-bold text-gray-900">{totalPresent}</span>
               </div>
-              <p className="text-purple-200 text-sm font-medium">Present Today</p>
-            </motion.div>
+              <p className="text-gray-600 text-sm font-medium">Present Today</p>
+            </div>
 
-            <motion.div
-              className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl p-4 shadow-xl"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              whileHover={{ scale: 1.05, y: -5 }}
-            >
+            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 border border-amber-400 shadow hover:shadow-md transition-all">
               <div className="flex items-center justify-between mb-2">
-                <Award className="w-8 h-8 text-white" />
+                <div className="bg-amber-400/30 p-2 rounded-lg">
+                  <Award className="w-7 h-7 text-white" />
+                </div>
                 <span className="text-3xl font-bold text-white">{totalAbsent}</span>
               </div>
               <p className="text-white text-sm font-medium">Absent Today</p>
-            </motion.div>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 mt-6">
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+          <div className="flex gap-3">
+            <button 
               onClick={() => setShowHistory(true)}
-              className="bg-white/10 backdrop-blur-lg hover:bg-white/20 text-white px-6 py-3 rounded-xl transition-all flex items-center justify-center flex-1 border border-white/20 font-semibold"
+              className="bg-white hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg border border-gray-300 flex items-center justify-center flex-1 font-medium transition-colors"
             >
               <BarChart3 className="w-5 h-5 mr-2" />
               Analytics & Reports
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            </button>
+            <button 
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl transition-all flex items-center justify-center flex-1 shadow-xl font-semibold"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center flex-1 shadow-sm font-medium transition-colors"
             >
               <Plus className="w-5 h-5 mr-2" />
               Add New Class
-            </motion.button>
+            </button>
           </div>
-        </motion.div>
+        </div>
         
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           <ClassList 
@@ -585,18 +526,11 @@ const FacultyDashboard = () => {
           />
           
           <div className="space-y-4 sm:space-y-6">
-            <AnimatePresence mode="wait">
-              {loading ? (
-                <LoadingSpinner size="lg" color="purple" />
-              ) : selectedClass ? (
-                <motion.div
-                  key="content"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-4 sm:space-y-6"
-                >
-                  <QRCodeSection 
+            {loading ? (
+              <LoadingSpinner size="lg" color="blue" />
+            ) : selectedClass ? (
+              <div className="space-y-4 sm:space-y-6">
+                <QRCodeSection 
                     showQR={showQR}
                     isGeneratingQR={isGeneratingQR}
                     onStartAttendance={startAttendance}
@@ -620,8 +554,8 @@ const FacultyDashboard = () => {
                   
                   {/* Late Arrival Tracking */}
                   {showQR && presentStudents.length > 0 && sessionStartTime && (
-                    <div className="bg-gray-800 rounded-xl p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">Attendance Breakdown</h3>
+                    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-4">Attendance Breakdown</h3>
                       <LateArrivalIndicator 
                         students={presentStudents}
                         sessionStartTime={sessionStartTime}
@@ -629,7 +563,7 @@ const FacultyDashboard = () => {
                       />
                     </div>
                   )}
-                </motion.div>
+                </div>
               ) : (
                 <EmptyState 
                   icon={List}
@@ -637,7 +571,6 @@ const FacultyDashboard = () => {
                   message="Select a class to view attendance options"
                 />
               )}
-            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -660,8 +593,11 @@ const FacultyDashboard = () => {
       <StudentListModal 
         isOpen={showStudentList}
         onClose={() => setShowStudentList(false)}
-        students={selectedClass?.student_list || []}
+        students={selectedClass?.studentList?.map(s => s.name || s) || selectedClass?.student_list || []}
         className={selectedClass?.name}
+        getRootProps={getRootProps}
+        getInputProps={getInputProps}
+        isDragActive={isDragActive}
       />
 
       {showHistory && (

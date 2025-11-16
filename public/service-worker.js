@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qrattendease-v2';
+const CACHE_NAME = 'qrattendease-v3';
 const urlsToCache = [
   '/',
   '/index.html',
