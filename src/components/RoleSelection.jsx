@@ -6,43 +6,66 @@ import axios from 'axios';
 const RoleSelection = () => {
   const loginAsStudent = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      localStorage.setItem('googleToken', tokenResponse.access_token);
-      localStorage.setItem('lastRoute', '/student');
-      
-      // Fetch and cache user data immediately
       try {
+        // Fetch user data to validate email
         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
         });
+        
+        const userEmail = response.data.email;
+        
+        // Validate student email must end with @sastra.ac.in
+        if (!userEmail.endsWith('@sastra.ac.in')) {
+          alert('Students must use their SASTRA email address (@sastra.ac.in) to login.');
+          return;
+        }
+        
+        localStorage.setItem('googleToken', tokenResponse.access_token);
+        localStorage.setItem('lastRoute', '/student');
+        localStorage.setItem('userRole', 'student'); // Remember role on this device
         localStorage.setItem('userData', JSON.stringify(response.data));
+        
+        window.location.href = '/student';
       } catch (error) {
         console.error('Failed to fetch user data');
+        alert('Login failed. Please try again.');
       }
-      
-      window.location.href = '/student';
     },
-    onError: () => {},
+    onError: () => {
+      alert('Login failed. Please try again.');
+    },
     flow: 'implicit'
   });
 
   const loginAsFaculty = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      localStorage.setItem('googleToken', tokenResponse.access_token);
-      localStorage.setItem('lastRoute', '/faculty');
-      
-      // Fetch and cache user data immediately
       try {
         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
         });
+        
+        const userEmail = response.data.email;
+        
+        // Faculty cannot use @sastra.ac.in student emails
+        if (userEmail.endsWith('@sastra.ac.in')) {
+          alert('Faculty members cannot use student email addresses. Please use your faculty email.');
+          return;
+        }
+        
+        localStorage.setItem('googleToken', tokenResponse.access_token);
+        localStorage.setItem('lastRoute', '/faculty');
+        localStorage.setItem('userRole', 'faculty'); // Remember role on this device
         localStorage.setItem('userData', JSON.stringify(response.data));
+        
+        window.location.href = '/faculty';
       } catch (error) {
         console.error('Failed to fetch user data');
+        alert('Login failed. Please try again.');
       }
-      
-      window.location.href = '/faculty';
     },
-    onError: () => {},
+    onError: () => {
+      alert('Login failed. Please try again.');
+    },
     flow: 'implicit'
   });
 

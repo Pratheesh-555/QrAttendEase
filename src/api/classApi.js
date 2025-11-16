@@ -75,5 +75,13 @@ export const classApi = {
   getStudentList: async (classId) => {
     const response = await axios.get(`${API_URL}/classes/${classId}/students`);
     return response.data;
+  },
+
+  // Update student list for a class
+  updateStudentList: async (classId, studentList) => {
+    const response = await axios.put(`${API_URL}/classes/${classId}/students`, {
+      studentList
+    });
+    return response.data;
   }
 };

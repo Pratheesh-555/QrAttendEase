@@ -88,9 +88,44 @@ router.get('/:classId/students', async (req, res) => {
   try {
     const classData = await Class.findById(req.params.classId);
     if (!classData) return res.status(404).json({ message: 'Class not found' });
-    res.json(classData.students);
+    res.json({ studentList: classData.studentList || classData.students || [] });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Update student list for a class
+router.put('/:classId/students', async (req, res) => {
+  try {
+    const { studentList } = req.body;
+    
+    if (!studentList || !Array.isArray(studentList)) {
+      return res.status(400).json({ message: 'Invalid student list' });
+    }
+
+    const updatedClass = await Class.findByIdAndUpdate(
+      req.params.classId,
+      { 
+        $set: { 
+          studentList: studentList,
+          student_list: studentList // Support both field names
+        } 
+      },
+      { new: true }
+    );
+
+    if (!updatedClass) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Student list updated successfully',
+      studentList: updatedClass.studentList || updatedClass.student_list
+    });
+  } catch (error) {
+    console.error('Update student list error:', error);
+    res.status(500).json({ message: 'Failed to update student list', error: error.message });
   }
 });
 

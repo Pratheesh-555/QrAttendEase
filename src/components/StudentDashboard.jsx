@@ -132,25 +132,20 @@ const StudentDashboard = () => {
     };
 
     const startScanner = async () => {
-      if (!qrReaderRef.current || codeReaderRef.current) return;
+      if (!qrReaderRef.current) return;
+
+      // Stop any existing scanner first
+      stopScanner();
 
       const container = qrReaderRef.current;
       container.innerHTML = '';
       
-      // Create video element with proper visibility
+      // Create video element
       const videoEl = document.createElement('video');
-      videoEl.setAttribute('playsinline', 'true');
-      videoEl.setAttribute('autoplay', 'true');
-      videoEl.setAttribute('muted', 'true');
-      videoEl.style.position = 'absolute';
-      videoEl.style.top = '0';
-      videoEl.style.left = '0';
-      videoEl.style.width = '100%';
-      videoEl.style.height = '100%';
-      videoEl.style.objectFit = 'cover';
-      videoEl.style.display = 'block';
-      videoEl.style.backgroundColor = '#000';
-      videoEl.style.zIndex = '1';
+      videoEl.setAttribute('playsinline', '');
+      videoEl.setAttribute('autoplay', '');
+      videoEl.setAttribute('muted', '');
+      videoEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#000;';
       
       container.appendChild(videoEl);
       videoRef.current = videoEl;
@@ -158,222 +153,86 @@ const StudentDashboard = () => {
       try {
         toast.loading('📷 Starting camera...');
         
-        // Get camera stream
-        const constraints = {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
+        // Request camera access
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: 1280, height: 720 },
           audio: false
-        };
+        });
         
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoEl.srcObject = stream;
         
-        // Wait for video to start playing
-        videoEl.onloadedmetadata = () => {
-          videoEl.play().then(() => {
-            setScanning(true);
-            toast.dismiss();
-            toast.success('📷 Camera ready!');
-          }).catch(err => {
-            console.error('Play error:', err);
-            setScanning(true); // Continue anyway
-            toast.dismiss();
-            toast.success('📷 Camera ready!');
-          });
-        };
+        // Wait for video metadata and start playing
+        await new Promise((resolve) => {
+          videoEl.onloadedmetadata = () => {
+            videoEl.play().then(resolve).catch(resolve);
+          };
+        });
         
-        // Initialize ZXing reader
-        codeReaderRef.current = new BrowserQRCodeReader();
+        setScanning(true);
+        toast.dismiss();
+        toast.success('📷 Camera active - Point at QR code');
         
-        // Start decoding from the video element
-        codeReaderRef.current.decodeFromVideoElement(
-          videoEl,
-          (result, error) => {
-            if (result) {
-              if (!scanSuccess && !hasScannedRef.current) {
-                handleDecoded(result.getText());
-              }
-            }
-            // Update scanning state once stream is active
-            if (error && error.name === 'NotFoundException') {
-              setScanning(true); // Camera is working, just no QR code found yet
-            }
+        // Initialize QR code reader
+        const reader = new BrowserQRCodeReader();
+        codeReaderRef.current = reader;
+        
+        // Start continuous QR scanning
+        reader.decodeFromVideoElement(videoEl, (result, error) => {
+          if (result && !scanSuccess && !hasScannedRef.current) {
+            handleDecoded(result.getText());
           }
-        );
+          if (error && error.name === 'NotFoundException') {
+            // No QR code found yet, keep scanning
+            setScanning(true);
+          }
+        });
         
       } catch (err) {
-        console.error('❌ Camera error:', err);
+        console.error('Camera error:', err);
+        toast.dismiss();
         setScanning(false);
         setCameraStarted(false);
         
-        // Stop any streams - defensive cleanup
-        try {
-          if (videoRef.current?.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => {
-              try { track.stop(); } catch (e) { void e; }
-            });
-          }
-          if (videoRef.current) {
-            videoRef.current.srcObject = null;
-            videoRef.current.remove();
-            videoRef.current = null;
-          }
-        } catch (cleanupErr) {
-          console.error('Cleanup error:', cleanupErr);
+        // Cleanup on error
+        if (videoRef.current?.srcObject) {
+          videoRef.current.srcObject.getTracks().forEach(t => t.stop());
         }
-        
-        // Reset refs
-        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        if (videoRef.current?.parentNode) {
+          videoRef.current.parentNode.removeChild(videoRef.current);
+        }
+        videoRef.current = null;
         codeReaderRef.current = null;
         
-        // Provide user-friendly error messages
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          toast.error('📷 Camera permission denied. Please allow camera access in your browser settings.');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        // Show user-friendly error
+        if (err.name === 'NotAllowedError') {
+          toast.error('📷 Camera access denied. Please allow camera in browser settings.');
+        } else if (err.name === 'NotFoundError') {
           toast.error('📷 No camera found on this device.');
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          toast.error('📷 Camera is in use by another app. Please close other apps and try again.');
-        } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
-          // Try with front camera
-          toast.error('📷 Trying front camera...');
-          setTimeout(async () => {
-            try {
-              const container = qrReaderRef.current;
-              if (!container) return;
-              
-              container.innerHTML = '';
-              const videoEl2 = document.createElement('video');
-              videoEl2.setAttribute('playsinline', 'true');
-              videoEl2.setAttribute('autoplay', 'true');
-              videoEl2.setAttribute('muted', 'true');
-              videoEl2.style.position = 'absolute';
-              videoEl2.style.top = '0';
-              videoEl2.style.left = '0';
-              videoEl2.style.width = '100%';
-              videoEl2.style.height = '100%';
-              videoEl2.style.objectFit = 'cover';
-              videoEl2.style.display = 'block';
-              videoEl2.style.backgroundColor = '#000';
-              videoEl2.style.zIndex = '1';
-              container.appendChild(videoEl2);
-              videoRef.current = videoEl2;
-              
-              // Try front camera
-              const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' },
-                audio: false
-              });
-              
-              videoEl2.srcObject = stream;
-              videoEl2.onloadedmetadata = () => {
-                videoEl2.play().then(() => {
-                  setCameraStarted(true);
-                  setScanning(true);
-                  toast.success('📷 Front camera ready!');
-                }).catch(() => {
-                  setCameraStarted(true);
-                  setScanning(true);
-                  toast.success('📷 Front camera ready!');
-                });
-              };
-              
-              codeReaderRef.current = new BrowserQRCodeReader();
-              codeReaderRef.current.decodeFromVideoElement(
-                videoEl2,
-                (result, error) => {
-                  if (result && !scanSuccess && !hasScannedRef.current) {
-                    handleDecoded(result.getText());
-                  }
-                  if (error && error.name === 'NotFoundException') {
-                    setScanning(true);
-                  }
-                }
-              );
-            } catch (e) {
-              console.error('Fallback camera error:', e);
-              toast.error('📷 Failed to start camera: ' + (e.message || 'Unknown error'));
-              setCameraStarted(false);
-              
-              // Cleanup fallback video
-              try {
-                if (videoRef.current?.srcObject) {
-                  videoRef.current.srcObject.getTracks().forEach(t => {
-                    try { t.stop(); } catch (err) { void err; }
-                  });
-                }
-                if (videoRef.current) {
-                  videoRef.current.srcObject = null;
-                  videoRef.current.remove();
-                  videoRef.current = null;
-                }
-                if (codeReaderRef.current) {
-                  try { codeReaderRef.current.reset(); } catch (err) { void err; }
-                  codeReaderRef.current = null;
-                }
-              } catch (cleanupErr) {
-                void cleanupErr;
-              }
-            }
-          }, 500);
-          return;
+        } else if (err.name === 'NotReadableError') {
+          toast.error('📷 Camera is being used by another app.');
         } else {
-          toast.error(`📷 Camera error: ${err.message || 'Unknown error'}`);
+          toast.error('📷 Failed to start camera. Please try again.');
         }
-        
-        // cleanup
-        codeReaderRef.current = null;
       }
     };
 
-    const stopScanner = async () => {
-      // Stop ZXing reader
-      try {
-        codeReaderRef.current?.reset();
-      } catch (e) {
-        void e;
-      }
+    const stopScanner = () => {
+      // Stop QR reader
+      codeReaderRef.current?.reset();
       codeReaderRef.current = null;
       
       // Stop video stream
-      if (videoRef.current) {
-        try {
-          const stream = videoRef.current.srcObject;
-          if (stream && stream.getTracks) {
-            stream.getTracks().forEach(track => {
-              try {
-                track.stop();
-              } catch (e) {
-                void e;
-              }
-            });
-          }
-          videoRef.current.srcObject = null;
-        } catch (e) {
-          void e;
-        }
-        try {
-          // Check if element has a parent before removing
-          if (videoRef.current && videoRef.current.parentNode) {
-            videoRef.current.parentNode.removeChild(videoRef.current);
-          }
-        } catch (e) {
-          void e;
-        }
-        videoRef.current = null;
+      if (videoRef.current?.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
       }
-      // Cleanup animation frame if any
-      if (rafRef.current) {
-        try {
-          cancelAnimationFrame(rafRef.current);
-        } catch (e) {
-          void e;
-        }
-        rafRef.current = null;
+      
+      // Remove video element
+      if (videoRef.current?.parentNode) {
+        videoRef.current.parentNode.removeChild(videoRef.current);
       }
+      videoRef.current = null;
+      
       setScanning(false);
       setCameraStarted(false);
     };

@@ -114,18 +114,27 @@ const FacultyDashboard = () => {
 
   const handleViewStudents = useCallback(async (cls) => {
     try {
-      const response = await axios.get(`https://attendease-yu7r.onrender.com/api/classes/${cls.id}`);
-      if (response.data.studentList?.length) {
-        setShowStudentList(true);
+      // Fetch student list from database
+      const response = await classApi.getStudentList(cls.id);
+      
+      if (response.studentList && response.studentList.length > 0) {
         setSelectedClass(prev => ({
           ...prev,
-          studentList: response.data.studentList
+          studentList: response.studentList.map(name => ({ name }))
         }));
+        setShowStudentList(true);
       } else {
-        toast.error('No student list available. Please upload an Excel file first.');
+        // No students in database, show modal with upload option
+        setSelectedClass(cls);
+        setShowStudentList(true);
+        toast.info('No students found. Please upload a student list.');
       }
     } catch (error) {
-      toast.error('Failed to fetch student list');
+      console.error('Failed to fetch student list:', error);
+      // Show modal even on error so user can upload
+      setSelectedClass(cls);
+      setShowStudentList(true);
+      toast.error('Failed to fetch student list. You can upload a new one.');
     }
   }, []);
   
@@ -204,10 +213,6 @@ const FacultyDashboard = () => {
       toast.error('No class selected');
       return;
     }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('classId', selectedClass.id);
 
     try {
       const reader = new FileReader();
@@ -222,18 +227,29 @@ const FacultyDashboard = () => {
             .flat()
             .filter(name => name && typeof name === 'string' && name.trim());
 
+          // Update local state
           setSelectedClass(prev => ({
             ...prev,
             studentList: studentNames.map(name => ({ name }))
           }));
           setAbsentStudents(studentNames);
-          toast.success(`Uploaded ${studentNames.length} students`);
+          
+          // Save to database
+          try {
+            await classApi.updateStudentList(selectedClass.id, studentNames);
+            toast.success(`Uploaded and saved ${studentNames.length} students`);
+          } catch (dbError) {
+            console.error('Failed to save to database:', dbError);
+            toast.success(`Uploaded ${studentNames.length} students (local only)`);
+          }
         } catch (error) {
+          console.error('Failed to process file:', error);
           toast.error('Failed to process file');
         }
       };
       reader.readAsArrayBuffer(file);
     } catch (error) {
+      console.error('Failed to upload student list:', error);
       toast.error('Failed to upload student list');
     }
   }, [selectedClass]);
@@ -287,13 +303,16 @@ const FacultyDashboard = () => {
       setSessionStartTime(new Date()); // Track session start time
       setAbsentStudents(selectedClass.studentList.map(s => s.name || s));
       
-      // Generate QR code immediately using requestAnimationFrame
-      requestAnimationFrame(() => {
+      // Wait for AnimatePresence animation to complete (300ms) before generating QR
+      setTimeout(() => {
         const qrGenerated = generateQRCode(selectedClass);
         if (!qrGenerated) {
-          toast.error('Failed to generate QR code. Please try clicking "Refresh QR Code".');
+          // Retry once after a short delay
+          setTimeout(() => {
+            generateQRCode(selectedClass);
+          }, 100);
         }
-      });
+      }, 350);
       
       toast.success('Attendance session started');
     } catch (error) {

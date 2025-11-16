@@ -29,18 +29,49 @@ function RouteTracker({ children }) {
   return children;
 }
 
+// Protected route component to enforce role-based access
+function ProtectedRoute({ children, allowedRole, userRole, userEmail }) {
+  // Students must have @sastra.ac.in email
+  if (allowedRole === 'student') {
+    if (!userEmail || !userEmail.endsWith('@sastra.ac.in')) {
+      return <Navigate to="/" replace />;
+    }
+  }
+  
+  // Faculty cannot have @sastra.ac.in email
+  if (allowedRole === 'faculty') {
+    if (userEmail && userEmail.endsWith('@sastra.ac.in')) {
+      return <Navigate to="/student" replace />;
+    }
+  }
+  
+  // Check if user's saved role matches the route
+  if (userRole && userRole !== allowedRole) {
+    return <Navigate to={`/${userRole}`} replace />;
+  }
+  
+  return children;
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     const verifyToken = async () => {
       const token = localStorage.getItem('googleToken');
       const savedUser = localStorage.getItem('userData');
+      const savedRole = localStorage.getItem('userRole');
       
       if (!token) {
         setLoading(false);
         return;
+      }
+      
+      // Load cached role
+      if (savedRole) {
+        setUserRole(savedRole);
       }
       
       // Load cached user data immediately - keep user logged in
@@ -70,6 +101,7 @@ function App() {
         if (!savedUser) {
           setUser(null);
           localStorage.removeItem('googleToken');
+          localStorage.removeItem('userRole');
         }
         // Mark token as potentially expired for background refresh
         localStorage.setItem('tokenExpired', 'true');
@@ -85,8 +117,10 @@ function App() {
     localStorage.removeItem('googleToken');
     localStorage.removeItem('userData');
     localStorage.removeItem('lastRoute');
+    localStorage.removeItem('userRole');
     localStorage.removeItem('tokenExpired');
     setUser(null);
+    setUserRole(null);
   };
 
   if (loading) {
@@ -138,10 +172,40 @@ function App() {
                     </>
                   ) : (
                     <>
-                      <Route path="/faculty" element={<FacultyDashboard />} />
-                      <Route path="/student" element={<StudentDashboard />} />
-                      <Route path="/" element={<Navigate to={localStorage.getItem('lastRoute') || '/faculty'} replace />} />
-                      <Route path="*" element={<Navigate to={localStorage.getItem('lastRoute') || '/faculty'} replace />} />
+                      <Route 
+                        path="/faculty" 
+                        element={
+                          <ProtectedRoute allowedRole="faculty" userRole={userRole} userEmail={user?.email}>
+                            <FacultyDashboard />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/student" 
+                        element={
+                          <ProtectedRoute allowedRole="student" userRole={userRole} userEmail={user?.email}>
+                            <StudentDashboard />
+                          </ProtectedRoute>
+                        } 
+                      />
+                      <Route 
+                        path="/" 
+                        element={
+                          <Navigate 
+                            to={userRole ? `/${userRole}` : (localStorage.getItem('lastRoute') || '/faculty')} 
+                            replace 
+                          />
+                        } 
+                      />
+                      <Route 
+                        path="*" 
+                        element={
+                          <Navigate 
+                            to={userRole ? `/${userRole}` : (localStorage.getItem('lastRoute') || '/faculty')} 
+                            replace 
+                          />
+                        } 
+                      />
                     </>
                   )}
                 </Routes>
