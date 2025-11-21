@@ -11,6 +11,7 @@
 
 **Say goodbye to paper attendance. Mark attendance in 3 seconds with QR codes.**
 
+
 [🚀 Live Demo](#) • [📖 Docs](#) • [🐛 Report Bug](https://github.com/Pratheesh-555/QrAttendEase/issues)
 
 </div>

@@ -1,16 +1,11 @@
-import { motion } from 'framer-motion';
 import { X, Upload } from 'lucide-react';
 
 const StudentListModal = ({ isOpen, onClose, students, className, getRootProps, getInputProps, isDragActive }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 min-h-screen h-screen w-screen">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white/95 backdrop-blur-md rounded-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-300"
-      >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 min-h-screen h-screen w-screen">
+      <div className="bg-white/95 backdrop-blur-md rounded-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl border border-slate-300">
         <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">Student List - {className}</h2>
           <button
@@ -68,7 +63,7 @@ const StudentListModal = ({ isOpen, onClose, students, className, getRootProps, 
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };

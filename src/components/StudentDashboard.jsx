@@ -23,8 +23,6 @@ const StudentDashboard = () => {
   const qrReaderRef = useRef(null);
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
   const hasScannedRef = useRef(false);
 
   useEffect(() => {
