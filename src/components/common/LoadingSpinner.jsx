@@ -1,25 +1,22 @@
-import { motion } from 'framer-motion';
-
-const LoadingSpinner = ({ size = 'md', color = 'purple' }) => {
+const LoadingSpinner = ({ size = 'md', color = 'blue' }) => {
   const sizes = {
-    sm: 'h-8 w-8',
-    md: 'h-12 w-12',
-    lg: 'h-16 w-16'
+    sm: 'h-6 w-6',
+    md: 'h-10 w-10',
+    lg: 'h-14 w-14'
   };
 
   const colors = {
-    purple: 'border-purple-500',
-    white: 'border-white'
+    blue: 'border-blue-500',
+    white: 'border-white',
+    gray: 'border-gray-500'
   };
 
   return (
-    <div className="flex flex-col items-center justify-center">
-      <motion.div
-        className={`animate-spin rounded-full border-t-2 border-b-2 ${sizes[size]} ${colors[color]}`}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+    <div className="flex flex-col items-center justify-center py-8">
+      <div
+        className={`animate-spin rounded-full border-2 border-t-transparent ${sizes[size]} ${colors[color]}`}
       />
-      <p className="text-gray-400 mt-4">Loading...</p>
+      <p className="text-gray-400 mt-4 text-sm">Loading...</p>
     </div>
   );
 };

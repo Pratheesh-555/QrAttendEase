@@ -1,16 +1,13 @@
 import { useCallback, useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { toast } from 'react-hot-toast'; 
-import { Plus, List, BarChart3, LogOut, Users, Calendar, TrendingUp, Award, Zap, Shield, Activity } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { Plus, List, BarChart3, LogOut, Users, Calendar, Award, Activity } from 'lucide-react';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
 import CryptoJS from 'crypto-js';
 import { format } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import emailjs from '@emailjs/browser';
-import axios from 'axios';
-import { emailConfig } from '../config/email';
 import { classApi } from '../api/classApi';
 
 import ClassList from './dashboard/ClassList';
@@ -22,27 +19,23 @@ import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 import StudentListModal from './dashboard/StudentListModal';
 import AttendanceHistory from './dashboard/AttendanceHistory';
-import LateArrivalIndicator from './dashboard/LateArrivalIndicator';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
-  const [classes, setClasses] = useState(() => {
-    const saved = localStorage.getItem('facultyClasses');
-    return saved ? JSON.parse(saved) : [];
-  });
+
+  // Classes are now loaded from MongoDB, not localStorage
+  const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [qrValue, setQrValue] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showQR, setShowQR] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [presentStudents, setPresentStudents] = useState([]);
   const [absentStudents, setAbsentStudents] = useState([]);
-  const [studentListUploaded, setStudentListUploaded] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showStudentList, setShowStudentList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState(null);
@@ -52,129 +45,154 @@ const FacultyDashboard = () => {
   const [newClass, setNewClass] = useState({
     name: '',
     time: format(new Date(), 'HH:mm'),
-    studentCount: 0
   });
 
+  // Load user info and fetch classes from MongoDB
   useEffect(() => {
-    // Load user info
     const cachedUser = localStorage.getItem('userData');
     if (cachedUser) {
       try {
-        setUserInfo(JSON.parse(cachedUser));
+        const parsed = JSON.parse(cachedUser);
+        setUserInfo(parsed);
+        // Fetch classes from MongoDB
+        fetchClasses(parsed.email);
       } catch (e) {
         console.error('Failed to parse user data');
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
-    
-    // Remove default classes if present in localStorage
-    const saved = localStorage.getItem('facultyClasses');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.some(c => c.name === 'Web Development' || c.name === 'Database Systems')) {
-        localStorage.setItem('facultyClasses', JSON.stringify([]));
-        setClasses([]);
-      }
-    }
-    localStorage.setItem('facultyClasses', JSON.stringify(classes));
-  }, [classes]);
+  }, []);
 
-  const handleDeleteClass = useCallback((classId) => {
+  const fetchClasses = async (email) => {
+    try {
+      setLoading(true);
+      const data = await classApi.getClasses(email);
+      // Map MongoDB response to a consistent shape
+      const mapped = data.map(c => ({
+        id: c._id,
+        name: c.className,
+        time: c.time || '09:00',
+        studentCount: c.studentCount || c.studentList?.length || 0,
+        studentList: c.studentList || [],
+      }));
+      setClasses(mapped);
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+      toast.error('Failed to load classes from server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClass = useCallback(async (classId) => {
     if (deleteConfirm === classId) {
-      const updatedClasses = classes.filter(c => c.id !== classId);
-      setClasses(updatedClasses);
-      localStorage.setItem('facultyClasses', JSON.stringify(updatedClasses));
-      
-      if (selectedClass?.id === classId) {
-        setSelectedClass(null);
-        setShowQR(false);
+      try {
+        await classApi.deleteClass(classId);
+        setClasses(prev => prev.filter(c => c.id !== classId));
+        if (selectedClass?.id === classId) {
+          setSelectedClass(null);
+          setShowQR(false);
+        }
+        setDeleteConfirm(null);
+        toast.success('Class deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete class');
       }
-      setDeleteConfirm(null);
-      toast.success('Class deleted successfully');
     } else {
       setDeleteConfirm(classId);
       toast('Click again to confirm deletion', { icon: '⚠️' });
       setTimeout(() => setDeleteConfirm(null), 3000);
     }
-  }, [deleteConfirm, selectedClass, classes]);
+  }, [deleteConfirm, selectedClass]);
 
-  const handleAddClass = useCallback(() => {
+  const handleAddClass = useCallback(async () => {
     if (!newClass.name.trim()) {
       toast.error('Please enter a class name');
       return;
     }
+    if (!userInfo?.email) {
+      toast.error('User not authenticated');
+      return;
+    }
 
-    const newId = Date.now();
-    const updatedClasses = [...classes, { id: newId, ...newClass }];
-    setClasses(updatedClasses);
-    localStorage.setItem('facultyClasses', JSON.stringify(updatedClasses));
-    toast.success('Class added successfully');
-    setNewClass({ name: '', time: format(new Date(), 'HH:mm'), studentCount: 0 });
-    setShowAddModal(false);
-  }, [newClass, classes]);
+    try {
+      const savedClass = await classApi.addClass(userInfo.email, newClass.name, newClass.time);
+      const mapped = {
+        id: savedClass._id,
+        name: savedClass.className,
+        time: savedClass.time || '09:00',
+        studentCount: 0,
+        studentList: [],
+      };
+      setClasses(prev => [mapped, ...prev]);
+      toast.success('Class added successfully');
+      setNewClass({ name: '', time: format(new Date(), 'HH:mm') });
+      setShowAddModal(false);
+    } catch (error) {
+      toast.error('Failed to add class');
+    }
+  }, [newClass, userInfo]);
 
   const handleViewStudents = useCallback(async (cls) => {
     try {
-      // Fetch student list from database
       const response = await classApi.getStudentList(cls.id);
-      
+
       if (response.studentList && response.studentList.length > 0) {
-        setSelectedClass(prev => ({
-          ...prev,
-          studentList: response.studentList.map(name => ({ name }))
-        }));
+        setSelectedClass({
+          ...cls,
+          studentList: response.studentList.map(s => typeof s === 'string' ? { name: s } : s)
+        });
         setShowStudentList(true);
       } else {
-        // No students in database, show modal with upload option
         setSelectedClass(cls);
         setShowStudentList(true);
-        toast.info('No students found. Please upload a student list.');
+        toast('No students found. Please upload a student list.', { icon: 'ℹ️' });
       }
     } catch (error) {
       console.error('Failed to fetch student list:', error);
-      // Show modal even on error so user can upload
       setSelectedClass(cls);
       setShowStudentList(true);
       toast.error('Failed to fetch student list. You can upload a new one.');
     }
   }, []);
-  
 
   const generateQRCode = useCallback((classInfo, containerId = 'qr-code', showToast = false) => {
     if (!classInfo) {
       toast.error('No class selected');
       return null;
     }
-    
+
     setIsGeneratingQR(true);
-    
+
     try {
       const payload = {
-        classId: classInfo.id,
+        classId: classInfo.id, // This is now the MongoDB _id
         className: classInfo.name,
         date: format(new Date(), 'yyyy-MM-dd'),
         timestamp: new Date().getTime(),
         nonce: Math.random().toString(36).substring(7)
       };
-  
+
       const secretKey = 'attendance-qr-secret-key';
       const encrypted = CryptoJS.AES.encrypt(JSON.stringify(payload), secretKey).toString();
-  
+
       const element = document.getElementById(containerId);
       if (!element) {
         setIsGeneratingQR(false);
         toast.error('QR container not found. Please try again.');
         return null;
       }
-      
+
       try {
         element.innerHTML = '';
         const codeWriter = new BrowserQRCodeSvgWriter();
         const qrSize = containerId === 'qr-code' ? 300 : 500;
-        
-        // Generate QR code with better error correction
+
         const svg = codeWriter.write(encrypted, qrSize, qrSize);
         element.appendChild(svg);
-        
+
         setQrValue(encrypted);
         if (showToast) {
           toast.success('QR Code generated successfully');
@@ -198,13 +216,23 @@ const FacultyDashboard = () => {
     generateQRCode(selectedClass, 'qr-code', true);
   }, [selectedClass, generateQRCode]);
 
-  const handleClassSelection = useCallback((cls) => {
-    setLoading(true);
+  const handleClassSelection = useCallback(async (cls) => {
     setSelectedClass(cls);
     setShowQR(false);
     setPresentStudents([]);
     setAbsentStudents([]);
-    setLoading(false);
+
+    // Fetch fresh student list for this class
+    try {
+      const response = await classApi.getStudentList(cls.id);
+      if (response.studentList && response.studentList.length > 0) {
+        const list = response.studentList.map(s => typeof s === 'string' ? { name: s } : s);
+        setSelectedClass(prev => ({ ...prev, studentList: list, studentCount: list.length }));
+      }
+    } catch (e) {
+      // Silent - student list might not exist yet
+    }
+
     toast.success(`${cls.name} selected`);
   }, []);
 
@@ -222,7 +250,6 @@ const FacultyDashboard = () => {
           const workbook = XLSX.read(data, { type: 'array' });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-          // Extract names from first column, filter empty values
           const studentNames = jsonData
             .flat()
             .filter(name => name && typeof name === 'string' && name.trim());
@@ -230,17 +257,25 @@ const FacultyDashboard = () => {
           // Update local state
           setSelectedClass(prev => ({
             ...prev,
-            studentList: studentNames.map(name => ({ name }))
+            studentList: studentNames.map(name => ({ name })),
+            studentCount: studentNames.length
           }));
           setAbsentStudents(studentNames);
-          
-          // Save to database
+
+          // Save to MongoDB
           try {
             await classApi.updateStudentList(selectedClass.id, studentNames);
             toast.success(`Uploaded and saved ${studentNames.length} students`);
+
+            // Update classes list too
+            setClasses(prev => prev.map(c =>
+              c.id === selectedClass.id
+                ? { ...c, studentCount: studentNames.length, studentList: studentNames.map(name => ({ name })) }
+                : c
+            ));
           } catch (dbError) {
             console.error('Failed to save to database:', dbError);
-            toast.success(`Uploaded ${studentNames.length} students (local only)`);
+            toast.error('Failed to save student list to server');
           }
         } catch (error) {
           console.error('Failed to process file:', error);
@@ -256,12 +291,7 @@ const FacultyDashboard = () => {
 
   const onDrop = useCallback(async (acceptedFiles) => {
     if (!selectedClass || !acceptedFiles.length) return;
-    setLoading(true);
-    try {
-      await readExcelFile(acceptedFiles[0]);
-    } finally {
-      setLoading(false);
-    }
+    await readExcelFile(acceptedFiles[0]);
   }, [selectedClass, readExcelFile]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -270,11 +300,10 @@ const FacultyDashboard = () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
       'text/csv': ['.csv'],
-      'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm']
     },
     multiple: false,
     onDropRejected: () => {
-      toast.error('Please upload a valid file');
+      toast.error('Please upload a valid Excel file');
     }
   });
 
@@ -283,39 +312,35 @@ const FacultyDashboard = () => {
       toast.error('No class selected');
       return;
     }
-    
+
     if (!selectedClass.studentList || selectedClass.studentList.length === 0) {
       toast.error('Please upload student list first');
       return;
     }
-    
+
     try {
-      // Try to initialize attendance session on backend (optional)
-      try {
-        await classApi.startAttendance(selectedClass.id);
-      } catch (backendError) {
-        // Backend may be unavailable, continue with local mode
-      }
-      
+      // Start attendance session on backend
+      await classApi.startAttendance(selectedClass.id);
+
       setShowQR(true);
-      setPresentStudents([]); // Clear previous attendance
-      setLateStudents([]); // Clear late students
-      setSessionStartTime(new Date()); // Track session start time
+      setPresentStudents([]);
+      setLateStudents([]);
+      setSessionStartTime(new Date());
       setAbsentStudents(selectedClass.studentList.map(s => s.name || s));
-      
-      // Wait for AnimatePresence animation to complete (300ms) before generating QR
+
+      // Wait for DOM to render QR container
       setTimeout(() => {
         const qrGenerated = generateQRCode(selectedClass);
         if (!qrGenerated) {
-          // Retry once after a short delay
           setTimeout(() => {
             generateQRCode(selectedClass);
           }, 100);
         }
       }, 350);
-      
+
       toast.success('Attendance session started');
     } catch (error) {
+      console.error('Failed to start attendance:', error);
       toast.error('Failed to start attendance session');
       setShowQR(false);
     }
@@ -328,9 +353,8 @@ const FacultyDashboard = () => {
 
   const handleQRClick = useCallback(() => {
     setShowQRModal(true);
-    // Use requestAnimationFrame for immediate but smooth rendering
     requestAnimationFrame(() => {
-      generateQRCode(selectedClass, 'qr-code-modal',false);
+      generateQRCode(selectedClass, 'qr-code-modal', false);
     });
   }, [selectedClass, generateQRCode]);
 
@@ -339,41 +363,7 @@ const FacultyDashboard = () => {
     setAbsentStudents(prev => prev.filter(s => s !== student));
   }, []);
 
-  const handleCloseAttendance = useCallback(async () => {
-    if (!selectedClass || !absentStudents.length) {
-      toast.error('No absent students to report');
-      return;
-    }
-
-    setIsSendingEmail(true);
-    try {
-      const templateParams = {
-        to_email: 'faculty@example.com', // Replace with actual faculty email
-        class_name: selectedClass.name,
-        date: format(new Date(), 'PPP'),
-        absent_count: absentStudents.length,
-        absent_list: absentStudents.join(', '),
-        total_students: selectedClass.studentCount
-      };
-
-      await emailjs.send(
-        emailConfig.serviceId,
-        emailConfig.templateId,
-        templateParams,
-        emailConfig.publicKey
-      );
-
-      toast.success('Attendance report sent successfully');
-      setShowQR(false);
-      setPresentStudents([]);
-      setAbsentStudents([]);
-    } catch (error) {
-      toast.error('Failed to send attendance report');
-    } finally {
-      setIsSendingEmail(false);
-    }
-  }, [selectedClass, absentStudents]);
-
+  // Poll for attendance updates while QR is active
   useEffect(() => {
     let pollInterval;
     if (selectedClass && showQR) {
@@ -382,6 +372,15 @@ const FacultyDashboard = () => {
           const response = await classApi.getAttendanceStatus(selectedClass.id);
           if (response.presentStudents && Array.isArray(response.presentStudents)) {
             setPresentStudents(response.presentStudents);
+
+            // Update absent list: remove present students from full list
+            if (selectedClass.studentList) {
+              const presentNames = new Set(response.presentStudents.map(s => typeof s === 'string' ? s : s.name));
+              const absent = selectedClass.studentList
+                .map(s => s.name || s)
+                .filter(name => !presentNames.has(name));
+              setAbsentStudents(absent);
+            }
           }
           if (response.lateStudents && Array.isArray(response.lateStudents)) {
             setLateStudents(response.lateStudents);
@@ -390,11 +389,8 @@ const FacultyDashboard = () => {
           // Silently handle polling errors
         }
       };
-      
-      // Fetch immediately when starting
+
       fetchAttendance();
-      
-      // Then poll every 2 seconds for real-time updates
       pollInterval = setInterval(fetchAttendance, 2000);
     }
     return () => {
@@ -406,8 +402,9 @@ const FacultyDashboard = () => {
     localStorage.removeItem('googleToken');
     localStorage.removeItem('userData');
     localStorage.removeItem('lastRoute');
+    localStorage.removeItem('userRole');
     navigate('/');
-    toast.success('👋 Signed out successfully');
+    toast.success('Signed out successfully');
   };
 
   // Calculate dashboard stats
@@ -416,126 +413,122 @@ const FacultyDashboard = () => {
   const totalPresent = presentStudents.length;
   const totalAbsent = absentStudents.length;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <LoadingSpinner size="lg" color="blue" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-stone-50 to-slate-100 text-gray-900 py-6 px-4">
-      <Toaster 
+    <div className="min-h-screen bg-slate-50 text-gray-900">
+      <Toaster
         position="top-center"
         toastOptions={{
-          duration: 4000,
+          duration: 3000,
           style: {
             background: '#fff',
             color: '#1f2937',
             borderRadius: '8px',
-            padding: '16px 24px',
-            fontSize: '15px',
+            padding: '12px 20px',
+            fontSize: '14px',
             fontWeight: '500',
             border: '1px solid #e5e7eb',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           },
         }}
       />
 
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-xl shadow-md border border-gray-300 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+      {/* Top Bar */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
               {userInfo?.picture ? (
-                <img 
-                  src={userInfo.picture} 
-                  alt="Profile" 
-                  className="w-16 h-16 rounded-full border-2 border-blue-300 shadow-sm"
+                <img
+                  src={userInfo.picture}
+                  alt="Profile"
+                  className="w-9 h-9 rounded-full border border-gray-200"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-2xl border-2 border-blue-300 shadow-md">
+                <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-sm">
                   {userInfo?.name?.charAt(0) || 'F'}
                 </div>
               )}
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 flex items-center">
-                  <div className="bg-blue-100 p-2 rounded-lg mr-2">
-                    <Shield className="w-7 h-7 text-blue-600" />
-                  </div>
-                  Faculty Dashboard
-                </h1>
-                <p className="text-gray-600 text-sm sm:text-base mt-1">
-                  {userInfo?.name || 'Welcome, Professor'} • {userInfo?.email || ''}
-                </p>
+                <h1 className="text-lg font-semibold text-gray-900">Faculty Dashboard</h1>
+                <p className="text-xs text-gray-500">{userInfo?.name || 'Professor'} • {userInfo?.email || ''}</p>
               </div>
             </div>
             <button
               onClick={handleSignOut}
-              className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg border border-gray-300 flex items-center space-x-2 transition-colors"
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg flex items-center space-x-2 text-sm transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
+        </div>
+      </header>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-blue-300 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <Calendar className="w-7 h-7 text-blue-600" />
-                </div>
-                <span className="text-3xl font-bold text-gray-900">{totalClasses}</span>
-              </div>
-              <p className="text-gray-600 text-sm font-medium">Total Classes</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <Calendar className="w-5 h-5 text-blue-500" />
+              <span className="text-2xl font-bold text-gray-900">{totalClasses}</span>
             </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-green-300 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className="bg-green-50 p-2 rounded-lg">
-                  <Activity className="w-7 h-7 text-green-600" />
-                </div>
-                <span className="text-3xl font-bold text-gray-900">{activeSession}</span>
-              </div>
-              <p className="text-gray-600 text-sm font-medium">Active Sessions</p>
-            </div>
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-slate-200 shadow hover:shadow-md hover:border-blue-300 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className="bg-blue-50 p-2 rounded-lg">
-                  <Users className="w-7 h-7 text-blue-600" />
-                </div>
-                <span className="text-3xl font-bold text-gray-900">{totalPresent}</span>
-              </div>
-              <p className="text-gray-600 text-sm font-medium">Present Today</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 border border-amber-400 shadow hover:shadow-md transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className="bg-amber-400/30 p-2 rounded-lg">
-                  <Award className="w-7 h-7 text-white" />
-                </div>
-                <span className="text-3xl font-bold text-white">{totalAbsent}</span>
-              </div>
-              <p className="text-white text-sm font-medium">Absent Today</p>
-            </div>
+            <p className="text-gray-500 text-xs font-medium">Total Classes</p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setShowHistory(true)}
-              className="bg-white hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg border border-gray-300 flex items-center justify-center flex-1 font-medium transition-colors"
-            >
-              <BarChart3 className="w-5 h-5 mr-2" />
-              Analytics & Reports
-            </button>
-            <button 
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center flex-1 shadow-sm font-medium transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add New Class
-            </button>
+          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <Activity className="w-5 h-5 text-green-500" />
+              <span className="text-2xl font-bold text-gray-900">{activeSession}</span>
+            </div>
+            <p className="text-gray-500 text-xs font-medium">Active Sessions</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <Users className="w-5 h-5 text-blue-500" />
+              <span className="text-2xl font-bold text-gray-900">{totalPresent}</span>
+            </div>
+            <p className="text-gray-500 text-xs font-medium">Present Today</p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <Award className="w-5 h-5 text-amber-500" />
+              <span className="text-2xl font-bold text-gray-900">{totalAbsent}</span>
+            </div>
+            <p className="text-gray-500 text-xs font-medium">Absent Today</p>
           </div>
         </div>
-        
-        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-          <ClassList 
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="bg-white hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-lg border border-gray-200 flex items-center justify-center flex-1 text-sm font-medium transition-colors shadow-sm"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Analytics & Reports
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center justify-center flex-1 text-sm font-medium transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Class
+          </button>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          <ClassList
             classes={classes}
             selectedClass={selectedClass}
             onClassSelect={handleClassSelection}
@@ -543,58 +536,42 @@ const FacultyDashboard = () => {
             deleteConfirm={deleteConfirm}
             onViewStudents={handleViewStudents}
           />
-          
-          <div className="space-y-4 sm:space-y-6">
-            {loading ? (
-              <LoadingSpinner size="lg" color="blue" />
-            ) : selectedClass ? (
-              <div className="space-y-4 sm:space-y-6">
-                <QRCodeSection 
-                    showQR={showQR}
-                    isGeneratingQR={isGeneratingQR}
-                    onStartAttendance={startAttendance}
-                    onStopAttendance={stopAttendance}
-                    onRefresh={handleManualRefresh}
-                    onQRClick={handleQRClick}
-                    onCloseAttendance={handleCloseAttendance}
-                    isSendingEmail={isSendingEmail}
-                  />
-                  
-                  <AttendanceStatus 
-                    showAttendance={showAttendance}
-                    presentStudents={presentStudents}
-                    absentStudents={absentStudents}
-                    onToggleView={() => setShowAttendance(!showAttendance)}
-                    getRootProps={studentListUploaded ? undefined : getRootProps}
-                    getInputProps={studentListUploaded ? undefined : getInputProps}
-                    onMarkPresent={handleMarkPresent}
-                    studentListUploaded={studentListUploaded}
-                  />
-                  
-                  {/* Late Arrival Tracking */}
-                  {showQR && presentStudents.length > 0 && sessionStartTime && (
-                    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-4">Attendance Breakdown</h3>
-                      <LateArrivalIndicator 
-                        students={presentStudents}
-                        sessionStartTime={sessionStartTime}
-                        gracePeriodMinutes={selectedClass?.gracePeriodMinutes || 10}
-                      />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <EmptyState 
-                  icon={List}
-                  title="No Class Selected"
-                  message="Select a class to view attendance options"
+
+          <div className="space-y-4">
+            {selectedClass ? (
+              <div className="space-y-4">
+                <QRCodeSection
+                  showQR={showQR}
+                  isGeneratingQR={isGeneratingQR}
+                  onStartAttendance={startAttendance}
+                  onStopAttendance={stopAttendance}
+                  onRefresh={handleManualRefresh}
+                  onQRClick={handleQRClick}
                 />
-              )}
+
+                <AttendanceStatus
+                  showAttendance={showAttendance}
+                  presentStudents={presentStudents}
+                  absentStudents={absentStudents}
+                  onToggleView={() => setShowAttendance(!showAttendance)}
+                  getRootProps={getRootProps}
+                  getInputProps={getInputProps}
+                  onMarkPresent={handleMarkPresent}
+                  studentListUploaded={selectedClass?.studentList?.length > 0}
+                />
+              </div>
+            ) : (
+              <EmptyState
+                icon={List}
+                title="No Class Selected"
+                message="Select a class to view attendance options"
+              />
+            )}
           </div>
         </div>
-      </div>
+      </main>
 
-      <AddClassModal 
+      <AddClassModal
         isOpen={showAddModal}
         newClass={newClass}
         onClose={() => setShowAddModal(false)}
@@ -602,17 +579,17 @@ const FacultyDashboard = () => {
         onSubmit={handleAddClass}
       />
 
-      <QRModal 
+      <QRModal
         isOpen={showQRModal}
         onClose={() => setShowQRModal(false)}
         onRefresh={handleManualRefresh}
         isGeneratingQR={isGeneratingQR}
       />
 
-      <StudentListModal 
+      <StudentListModal
         isOpen={showStudentList}
         onClose={() => setShowStudentList(false)}
-        students={selectedClass?.studentList?.map(s => s.name || s) || selectedClass?.student_list || []}
+        students={selectedClass?.studentList?.map(s => s.name || s) || []}
         className={selectedClass?.name}
         getRootProps={getRootProps}
         getInputProps={getInputProps}
@@ -620,7 +597,7 @@ const FacultyDashboard = () => {
       />
 
       {showHistory && (
-        <AttendanceHistory 
+        <AttendanceHistory
           classes={classes}
           onClose={() => setShowHistory(false)}
         />

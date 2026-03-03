@@ -4,19 +4,25 @@ import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const classApi = {
-  // Upload class list
-  uploadClass: async (teacherEmail, className, students) => {
+  // Get teacher's classes
+  getClasses: async (teacherEmail) => {
+    const response = await axios.get(`${API_URL}/classes/${teacherEmail}`);
+    return response.data;
+  },
+
+  // Add a new class
+  addClass: async (teacherEmail, className, time) => {
     const response = await axios.post(`${API_URL}/classes`, {
       teacherEmail,
       className,
-      students
+      time
     });
     return response.data;
   },
 
-  // Get teacher's classes
-  getClasses: async (teacherEmail) => {
-    const response = await axios.get(`${API_URL}/classes/${teacherEmail}`);
+  // Delete a class
+  deleteClass: async (classId) => {
+    const response = await axios.delete(`${API_URL}/classes/${classId}`);
     return response.data;
   },
 
@@ -52,25 +58,6 @@ export const classApi = {
     return response.data;
   },
 
-  // Upload student list
-  uploadStudentList: async (teacherEmail, className, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('teacherEmail', teacherEmail);
-    formData.append('className', className);
-
-    const response = await axios.post(
-      `${API_URL}/classes/upload-students`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    );
-    return response.data;
-  },
-
   // Get student list
   getStudentList: async (classId) => {
     const response = await axios.get(`${API_URL}/classes/${classId}/students`);
@@ -82,6 +69,12 @@ export const classApi = {
     const response = await axios.put(`${API_URL}/classes/${classId}/students`, {
       studentList
     });
+    return response.data;
+  },
+
+  // Get attendance history for analytics
+  getAttendanceHistory: async (classId) => {
+    const response = await axios.get(`${API_URL}/attendance/history/${classId}`);
     return response.data;
   }
 };

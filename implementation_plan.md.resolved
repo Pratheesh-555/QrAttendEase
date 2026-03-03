@@ -1,0 +1,75 @@
+# Product Requirements Document & Implementation Plan: QR AttendEase Enterprise Enhancement
+
+## 1. Executive Summary
+- **Objective:** Upgrade QR AttendEase into a highly robust, 100% functional, and user-friendly enterprise-grade application suitable for large-scale university deployments.
+- **Focus Areas:** Flawless QR scanning, professional and simplified Teacher Dashboard, seamless real-time attendance registration, and zero-error workflows.
+
+## User Review Required
+> [!IMPORTANT]
+> Please review this PRD and Implementation Plan. Key questions for you:
+> 1. Do you agree with transitioning the UI to a more "professional/minimalist" enterprise aesthetic (e.g., cleaner tables, subtle transitions instead of bouncy animations)?
+> 2. For real-time updates on the teacher's dashboard, the current system might use polling. Do you want to implement WebSockets (Socket.io) for instant, 100% reliable real-time updates registration?
+> 3. Does the "Confirm & Submit" step after scanning perfectly match your expectations, or should it auto-submit upon successful scan?
+
+## 2. Core Features & Requirements
+
+### 2.1. Teacher Dashboard (Enterprise UI Restyle)
+- **Goal:** Simplify the "fancy" UI into a clean, professional, and intuitive interface.
+- **Requirements:**
+  - Standardized modern enterprise color palette (e.g., slate, navy, crisp white).
+  - Clean data tables for class lists and attendance logs with sorting/filtering capabilities.
+  - **Zero-Refresh Updates:** The dashboard must instantly reflect when a student marks their attendance.
+  - Clear visual indicators of currently active attendance sessions (e.g., a "Live" badge).
+
+### 2.2. QR Scanning & Attendance Flow (Student Side)
+- **Goal:** A frictionless, 100% reliable scanning and confirmation experience.
+- **Requirements:**
+  - Robust QR code interpretation (handling glare or low-light situations natively).
+  - **Confirmation Step:** Upon scanning, a dialog must ask the student to confirm and submit their attendance to prevent accidental scans.
+  - Resilient error handling (handling expired QRs natively with clear instructions to "Ask teacher to refresh QR").
+
+### 2.3. Real-Time Registration & Confirmation (Backend/Frontend Sync)
+- **Goal:** As soon as a student submits, their name immediately appears on the teacher's active dashboard.
+- **Requirements:**
+  - Guaranteed once-and-only-once delivery preventing duplicate attendance entries.
+  - Instant visualization on the teacher's end.
+
+---
+
+## 3. Proposed Changes (Implementation Plan)
+
+### UI/Frontend
+The UI will be refined across the board to meet enterprise standards.
+#### [MODIFY] src/index.css / tailwind.config.js
+- Standardize the color palette and typography for a professional look.
+#### [MODIFY] src/components/Dashboard (and related files)
+- Convert the existing dashboard layout to a cleaner sidebar + main content structure.
+- Implement robust state tracking to immediately append new students to the list when notified by the backend.
+#### [MODIFY] src/components/Scanner (and related files)
+- Add a "Confirm & Submit" intermediary state after a successful QR read.
+- Improve error messaging UI.
+
+### Backend/API
+Ensure that the attendance registration is atomic, error-free, and broadcasts updates natively.
+#### [MODIFY] server/controllers/attendanceController.js
+- Harden the `/mark` endpoint to gracefully handle concurrency and edge-cases.
+- Integrate event broadcasting to the frontend (via WebSockets or refined SSE).
+#### [MODIFY/NEW] server/websocket.js (or equivalent real-time handler)
+- Scaffold a reliable channel so the Teacher Dashboard receives instant 'student_marked' payloads.
+
+---
+
+## 4. Verification Plan
+
+### Automated Tests
+- Validate token parsing and expiry logic.
+- Ensure API returns proper error codes (e.g., 400 for expired tokens, 409 for duplicate scans).
+
+### Manual Verification Flow
+1. **Setup:** Start frontend (`npm run dev`) and backend (`npm start`).
+2. **Teacher Flow:** Log in as a Teacher, navigate to the Dashboard, select a class, and generate a new QR session.
+3. **Student Flow:** Log in as a Student on a separate device/incognito window, open the Scanner, and scan the teacher's QR code.
+4. **Action:** Student clicks "Confirm & Submit".
+5. **Expected Outcome 1:** Student sees a crisp "Attendance Marked Successfully" indicator.
+6. **Expected Outcome 2:** Teacher's dashboard *instantly* updates to show the student's name, without any manual page refresh.
+7. **Robustness Check:** No console errors, and scanning the same QR again yields an elegant "Already Marked" message.
