@@ -26,12 +26,17 @@ const attendanceSchema = new mongoose.Schema({
   absentStudents: [{ name: String, regNo: String }],
   totalStudents: { type: Number, default: 0 },
   attendanceRate: { type: Number, default: 0 },
+  qrTokenHash: { type: String },
+  qrIssuedAt: { type: Date },
+  qrTokenExpiresAt: { type: Date },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 attendanceSchema.index({ classId: 1, date: -1 });
 attendanceSchema.index({ date: -1 });
 attendanceSchema.index({ 'presentStudents.email': 1 });
+attendanceSchema.index({ qrTokenHash: 1 });
+attendanceSchema.index({ qrTokenExpiresAt: 1 });
 
 attendanceSchema.pre('save', function(next) {
   if (this.totalStudents > 0) {

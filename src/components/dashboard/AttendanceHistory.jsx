@@ -1,13 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Download, TrendingUp, Users, BarChart3, Filter, X } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval } from 'date-fns';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
-
-const COLORS = ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6'];
+import { classApi } from '../../api/classApi';
 
 const AttendanceHistory = ({ classes, onClose }) => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -16,38 +15,42 @@ const AttendanceHistory = ({ classes, onClose }) => {
     end: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
   const [viewMode, setViewMode] = useState('chart'); // chart, table, stats
+  const [historyData, setHistoryData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Generate mock historical data (replace with real API data)
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const response = await classApi.getAttendanceHistory();
+        setHistoryData(Array.isArray(response.history) ? response.history : []);
+      } catch (fetchError) {
+        console.error('Failed to load attendance history:', fetchError);
+        setError('Unable to load attendance history right now.');
+        setHistoryData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, []);
+
   const generateHistoricalData = useMemo(() => {
-    const data = [];
     const start = new Date(dateRange.start);
     const end = new Date(dateRange.end);
-    
-    const days = eachDayOfInterval({ start, end });
-    
-    days.forEach(day => {
-      const dayStr = format(day, 'yyyy-MM-dd');
-      classes.forEach(cls => {
-        if (selectedClass === 'all' || selectedClass === cls.id.toString()) {
-          // Generate random attendance (replace with real data)
-          const totalStudents = cls.studentCount || 30;
-          const presentCount = Math.floor(Math.random() * 10) + Math.floor(totalStudents * 0.7);
-          
-          data.push({
-            date: dayStr,
-            className: cls.name,
-            classId: cls.id,
-            present: presentCount,
-            absent: totalStudents - presentCount,
-            total: totalStudents,
-            percentage: ((presentCount / totalStudents) * 100).toFixed(1)
-          });
-        }
-      });
-    });
-    
-    return data;
-  }, [classes, selectedClass, dateRange]);
+
+    return historyData
+      .filter((record) => {
+        const recordDate = new Date(record.date || record.sessionStartTime || Date.now());
+        const matchesClass = selectedClass === 'all' || record.classId === selectedClass;
+        return matchesClass && isWithinInterval(recordDate, { start, end });
+      })
+      .sort((a, b) => new Date(b.date || b.sessionStartTime) - new Date(a.date || a.sessionStartTime));
+  }, [historyData, selectedClass, dateRange]);
 
   // Aggregate data for charts
   const chartData = useMemo(() => {
@@ -313,6 +316,25 @@ const AttendanceHistory = ({ classes, onClose }) => {
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
+          {loading && (
+            <div className="flex items-center justify-center py-16 text-gray-300">
+              Loading attendance history...
+            </div>
+          )}
+
+          {!loading && error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200">
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && generateHistoricalData.length === 0 && (
+            <div className="rounded-lg border border-gray-600 bg-gray-700 px-4 py-6 text-center text-gray-300">
+              No attendance sessions found for the current filter range.
+            </div>
+          )}
+
+          {!loading && !error && generateHistoricalData.length > 0 && (
           <AnimatePresence mode="wait">
             {viewMode === 'chart' && (
               <motion.div
@@ -512,6 +534,7 @@ const AttendanceHistory = ({ classes, onClose }) => {
               </motion.div>
             )}
           </AnimatePresence>
+          )}
         </div>
       </motion.div>
     </motion.div>

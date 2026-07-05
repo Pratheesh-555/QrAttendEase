@@ -52,6 +52,23 @@ export const classApi = {
     }
   },
 
+  // Mark student attendance using a scanned QR token
+  markAttendanceByToken: async (qrToken, studentEmail, studentName) => {
+    try {
+      const response = await axios.post(`${API_URL}/attendance/mark`, {
+        qrToken,
+        studentEmail,
+        studentName
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.message) {
+        return { success: false, message: error.response.data.message };
+      }
+      return { success: false, message: 'Failed to mark attendance.' };
+    }
+  },
+
   // Get attendance status
   getAttendanceStatus: async (classId) => {
     const response = await axios.get(`${API_URL}/attendance/${classId}`);
@@ -73,8 +90,16 @@ export const classApi = {
   },
 
   // Get attendance history for analytics
-  getAttendanceHistory: async (classId) => {
-    const response = await axios.get(`${API_URL}/attendance/history/${classId}`);
+  getAttendanceHistory: async (classId = null) => {
+    const endpoint = classId ? `${API_URL}/attendance/history/${classId}` : `${API_URL}/attendance/history`;
+    const response = await axios.get(endpoint);
+    return response.data;
+  },
+
+  // Get attendance audit trail
+  getAttendanceAudit: async (classId = null) => {
+    const endpoint = classId ? `${API_URL}/attendance/audit/${classId}` : `${API_URL}/attendance/audit`;
+    const response = await axios.get(endpoint);
     return response.data;
   }
 };

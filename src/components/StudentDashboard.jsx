@@ -3,7 +3,6 @@ import { BrowserQRCodeReader } from '@zxing/browser';
 import { Camera, CheckCircle, XCircle, AlertCircle, History, Clock, LogOut, Award, TrendingUp, Calendar, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import CryptoJS from 'crypto-js';
 import { toast, Toaster } from 'react-hot-toast';
 import { classApi } from '../api/classApi';
 
@@ -13,68 +12,82 @@ const StudentDashboard = () => {
   const [scanning, setScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [cameraStarted, setCameraStarted] = useState(false);
+
+  const submitAttendanceToken = async (token) => {
+    if (!token || submitting || !userInfo?.email) return;
+
+    setSubmitting(true);
+    const loadingToast = toast.loading('Submitting attendance...');
+
+    try {
+      const response = await classApi.markAttendanceByToken(
+        token,
+        userInfo.email,
+        userInfo.name
+      );
+
+      if (response.success) {
+        toast.success('Attendance marked successfully!', { id: loadingToast });
+
+        setIsLate(response.isLate || false);
+        setSubmitSuccess(true);
+
+        const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
+        const newRecord = {
+          className: response.attendance?.className || 'Attendance Session',
+          qrToken: token,
+          timestamp: new Date().getTime(),
+          isLate: response.isLate || false,
+          email: userInfo.email
+        };
+        history.push(newRecord);
+        localStorage.setItem('attendanceHistory', JSON.stringify(history));
+        setAttendanceHistory(history.slice(-10));
+
+        const total = history.length;
+        const late = history.filter(r => r.isLate).length;
+        const present = total - late;
+        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+        setStats({ total, present, late, percentage });
+
+        setScanSuccess(false);
+        setQrData(null);
+        setManualToken('');
+        setCameraError('');
+        hasScannedRef.current = false;
+
+        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+        try {
+          if (videoRef.current) {
+            const stream = videoRef.current.srcObject;
+            if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
+            videoRef.current.remove();
+            videoRef.current = null;
+          }
+        } catch (e) { void e; }
+        setCameraStarted(false);
+
+        setTimeout(() => {
+          setSubmitSuccess(false);
+          setIsLate(false);
+        }, 5000);
+      } else {
+        toast.error(response.message || 'Failed to mark attendance', { id: loadingToast });
+        hasScannedRef.current = false;
+        setScanSuccess(false);
+      }
+    } catch (error) {
+      console.error('Attendance submission error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Network error. Please try again.';
+      toast.error(errorMsg, { id: loadingToast });
+      hasScannedRef.current = false;
+      setScanSuccess(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const [qrData, setQrData] = useState(null);
   const [isLate, setIsLate] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [attendanceHistory, setAttendanceHistory] = useState([]);
-  const [stats, setStats] = useState({ total: 0, present: 0, late: 0, percentage: 0 });
-  const [showHistory, setShowHistory] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const navigate = useNavigate();
-  const qrReaderRef = useRef(null);
-  const videoRef = useRef(null);
-  const codeReaderRef = useRef(null);
-  const hasScannedRef = useRef(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem('googleToken');
-    const cachedUser = localStorage.getItem('userData');
-
-    if (!token) {
-      navigate('/');
-      return;
-    }
-
-    if (cachedUser) {
-      try {
-        setUserInfo(JSON.parse(cachedUser));
-        setLoading(false);
-      } catch (e) {
-        console.error('Failed to parse cached user');
-      }
-    }
-
-    const getUserInfo = async () => {
-      try {
-        const response = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setUserInfo(response.data);
-        localStorage.setItem('userData', JSON.stringify(response.data));
-        setLoading(false);
-      } catch (error) {
-        if (!cachedUser) {
-          localStorage.removeItem('googleToken');
-          navigate('/');
-        }
-      }
-    };
-
-    if (!cachedUser) {
-      getUserInfo();
-    }
-
-    // Load attendance history
-    const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
-    setAttendanceHistory(history.slice(-10));
-
-    const total = history.length;
-    const late = history.filter(r => r.isLate).length;
-    const present = total - late;
-    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
-    setStats({ total, present, late, percentage });
-  }, [navigate]);
 
   useEffect(() => {
     const handleDecoded = async (text) => {
@@ -82,29 +95,21 @@ const StudentDashboard = () => {
       hasScannedRef.current = true;
 
       try {
-        const decrypted = CryptoJS.AES.decrypt(text, 'attendance-qr-secret-key').toString(CryptoJS.enc.Utf8);
-
-        if (!decrypted) {
+        if (!text || text.trim().length < 24) {
           toast.error('Invalid QR code format');
           hasScannedRef.current = false;
           return;
         }
 
-        const data = JSON.parse(decrypted);
-        const now = new Date().getTime();
-
-        if (now - data.timestamp > 30000) {
-          toast.error('QR code has expired. Please ask faculty to refresh.');
-          hasScannedRef.current = false;
-          return;
-        }
-
-        setQrData(decrypted);
+        const token = text.trim();
+        setQrData(token);
         setScanSuccess(true);
         setScanning(false);
         toast.success('QR code scanned! Confirm your attendance below.');
 
         try { codeReaderRef.current?.reset(); } catch (e) { void e; }
+
+        await submitAttendanceToken(token);
       } catch (error) {
         console.error('QR decode error:', error);
         toast.error('Invalid or corrupted QR code');
@@ -199,12 +204,16 @@ const StudentDashboard = () => {
 
         if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
           toast.error('Camera permission denied. Please allow camera access.');
+          setCameraError('Camera permission denied. Use manual token entry or enable camera access.');
         } else if (err.name === 'NotFoundError') {
           toast.error('No camera found on this device.');
+          setCameraError('No camera found on this device. Use manual token entry.');
         } else if (err.name === 'NotReadableError') {
           toast.error('Camera is in use by another application.');
+          setCameraError('Camera is in use by another application. Use manual token entry.');
         } else {
           toast.error('Camera failed to start. Please refresh and try again.');
+          setCameraError('Camera failed to start. Use manual token entry or try another browser.');
         }
       }
     };
@@ -244,88 +253,18 @@ const StudentDashboard = () => {
       setCameraStarted(true);
       hasScannedRef.current = false;
       setSubmitSuccess(false);
+      setCameraError('');
     }
   };
 
   const handleMarkPresent = async () => {
     if (!qrData || submitting) return;
+    await submitAttendanceToken(qrData);
+  };
 
-    setSubmitting(true);
-    const loadingToast = toast.loading('Submitting attendance...');
-
-    try {
-      const data = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
-
-      if (!data.classId) {
-        toast.error('Invalid QR code — missing class ID', { id: loadingToast });
-        setSubmitting(false);
-        return;
-      }
-
-      const response = await classApi.markAttendance(
-        data.classId,
-        userInfo.email,
-        userInfo.name
-      );
-
-      if (response.success) {
-        toast.success('Attendance marked successfully!', { id: loadingToast });
-
-        setIsLate(response.isLate || false);
-        setSubmitSuccess(true);
-
-        // Store in localStorage
-        const history = JSON.parse(localStorage.getItem('attendanceHistory') || '[]');
-        const newRecord = {
-          classId: data.classId,
-          className: data.className || 'Unknown Class',
-          timestamp: new Date().getTime(),
-          isLate: response.isLate || false,
-          email: userInfo.email
-        };
-        history.push(newRecord);
-        localStorage.setItem('attendanceHistory', JSON.stringify(history));
-        setAttendanceHistory(history.slice(-10));
-
-        // Update stats
-        const total = history.length;
-        const late = history.filter(r => r.isLate).length;
-        const present = total - late;
-        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
-        setStats({ total, present, late, percentage });
-
-        // Reset scanner states
-        setScanSuccess(false);
-        setQrData(null);
-        hasScannedRef.current = false;
-
-        // Stop camera
-        try { codeReaderRef.current?.reset(); } catch (e) { void e; }
-        try {
-          if (videoRef.current) {
-            const stream = videoRef.current.srcObject;
-            if (stream && stream.getTracks) stream.getTracks().forEach(t => t.stop());
-            videoRef.current.remove();
-            videoRef.current = null;
-          }
-        } catch (e) { void e; }
-        setCameraStarted(false);
-
-        // Auto-hide success after 5 seconds
-        setTimeout(() => {
-          setSubmitSuccess(false);
-          setIsLate(false);
-        }, 5000);
-      } else {
-        toast.error(response.message || 'Failed to mark attendance', { id: loadingToast });
-      }
-    } catch (error) {
-      console.error('Attendance submission error:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Network error. Please try again.';
-      toast.error(errorMsg, { id: loadingToast });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleManualSubmit = async () => {
+    if (!manualToken.trim() || submitting) return;
+    await submitAttendanceToken(manualToken.trim());
   };
 
   const handleSignOut = () => {
@@ -569,8 +508,41 @@ const StudentDashboard = () => {
                 </div>
               </div>
             )}
+
+            {!cameraSupported && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
+                {cameraError || 'Camera access is limited on this device. Use manual token entry below.'}
+              </div>
+            )}
+
+            {cameraError && cameraSupported && (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 text-sm">
+                {cameraError}
+              </div>
+            )}
           </div>
 
+
+            <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Manual token entry</h3>
+              <p className="text-xs text-gray-500 mb-3">Use this if the camera is unavailable or the browser is not supported.</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={manualToken}
+                  onChange={(e) => setManualToken(e.target.value)}
+                  placeholder="Paste QR token here"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={handleManualSubmit}
+                  disabled={submitting || !manualToken.trim()}
+                  className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  Submit Token
+                </button>
+              </div>
+            </div>
           {/* Attendance History */}
           {attendanceHistory.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-5">

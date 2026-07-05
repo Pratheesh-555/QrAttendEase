@@ -1,0 +1,68 @@
+{
+  "classes": [
+    {
+      "_id": "15c7c002-d39e-4f90-b106-9c905ee21a60",
+      "teacherEmail": "faculty.demo@company.com",
+      "className": "QA Demo Class",
+      "time": "09:30",
+      "studentCount": 3,
+      "studentList": [
+        {
+          "name": "Alice Dummy",
+          "email": "",
+          "rollNumber": ""
+        },
+        {
+          "name": "Bob Dummy",
+          "email": "",
+          "rollNumber": ""
+        },
+        {
+          "name": "Charlie Dummy",
+          "email": "",
+          "rollNumber": ""
+        }
+      ],
+      "gracePeriodMinutes": 10,
+      "isActive": false,
+      "createdAt": "2026-07-05T18:56:27.130Z",
+      "updatedAt": "2026-07-05T18:56:27.232Z"
+    }
+  ],
+  "attendance": [
+    {
+      "_id": "5e1a9e31-64bc-4621-b21e-0c9db901044a",
+      "classId": "15c7c002-d39e-4f90-b106-9c905ee21a60",
+      "className": "QA Demo Class",
+      "date": "2026-07-05T18:30:00.000Z",
+      "sessionStartTime": "2026-07-05T18:56:27.177Z",
+      "sessionEndTime": null,
+      "presentStudents": [
+        {
+          "name": "Alice Dummy",
+          "email": "alice@sastra.ac.in",
+          "timestamp": "2026-07-05T18:56:27.198Z",
+          "status": "present",
+          "isLate": false
+        }
+      ],
+      "absentStudents": [
+        {
+          "name": "Bob Dummy",
+          "email": "",
+          "rollNumber": ""
+        },
+        {
+          "name": "Charlie Dummy",
+          "email": "",
+          "rollNumber": ""
+        }
+      ],
+      "totalStudents": 3,
+      "attendanceRate": 33.33,
+      "isActive": true,
+      "createdAt": "2026-07-05T18:56:27.177Z",
+      "updatedAt": "2026-07-05T18:56:27.198Z"
+    }
+  ]
+}

@@ -3,7 +3,6 @@ import { Toaster } from 'react-hot-toast';
 import { toast } from 'react-hot-toast';
 import { Plus, List, BarChart3, LogOut, Users, Calendar, Award, Activity } from 'lucide-react';
 import { BrowserQRCodeSvgWriter } from '@zxing/browser';
-import CryptoJS from 'crypto-js';
 import { format } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +18,7 @@ import LoadingSpinner from './common/LoadingSpinner';
 import EmptyState from './common/EmptyState';
 import StudentListModal from './dashboard/StudentListModal';
 import AttendanceHistory from './dashboard/AttendanceHistory';
+import AuditTrailModal from './dashboard/AuditTrailModal';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ const FacultyDashboard = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [showStudentList, setShowStudentList] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState(null);
   const [lateStudents, setLateStudents] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
@@ -158,26 +159,15 @@ const FacultyDashboard = () => {
     }
   }, []);
 
-  const generateQRCode = useCallback((classInfo, containerId = 'qr-code', showToast = false) => {
-    if (!classInfo) {
-      toast.error('No class selected');
+  const generateQRCode = useCallback((qrToken, containerId = 'qr-code', showToast = false) => {
+    if (!qrToken) {
+      toast.error('No QR token available');
       return null;
     }
 
     setIsGeneratingQR(true);
 
     try {
-      const payload = {
-        classId: classInfo.id, // This is now the MongoDB _id
-        className: classInfo.name,
-        date: format(new Date(), 'yyyy-MM-dd'),
-        timestamp: new Date().getTime(),
-        nonce: Math.random().toString(36).substring(7)
-      };
-
-      const secretKey = 'attendance-qr-secret-key';
-      const encrypted = CryptoJS.AES.encrypt(JSON.stringify(payload), secretKey).toString();
-
       const element = document.getElementById(containerId);
       if (!element) {
         setIsGeneratingQR(false);
@@ -190,15 +180,15 @@ const FacultyDashboard = () => {
         const codeWriter = new BrowserQRCodeSvgWriter();
         const qrSize = containerId === 'qr-code' ? 300 : 500;
 
-        const svg = codeWriter.write(encrypted, qrSize, qrSize);
+        const svg = codeWriter.write(qrToken, qrSize, qrSize);
         element.appendChild(svg);
 
-        setQrValue(encrypted);
+        setQrValue(qrToken);
         if (showToast) {
           toast.success('QR Code generated successfully');
         }
         setIsGeneratingQR(false);
-        return encrypted;
+        return qrToken;
       } catch (err) {
         setIsGeneratingQR(false);
         toast.error('Failed to write QR code');
@@ -213,8 +203,27 @@ const FacultyDashboard = () => {
 
   const handleManualRefresh = useCallback(() => {
     if (!selectedClass) return;
-    generateQRCode(selectedClass, 'qr-code', true);
+    classApi.startAttendance(selectedClass.id)
+      .then((response) => {
+        const qrToken = response.attendance?.qrToken || response.qrToken;
+        if (qrToken) {
+          generateQRCode(qrToken, 'qr-code', true);
+        }
+      })
+      .catch(() => {
+        toast.error('Failed to refresh QR token');
+      });
   }, [selectedClass, generateQRCode]);
+
+  useEffect(() => {
+    if (!showQR || !selectedClass) return;
+
+    const refreshInterval = setInterval(() => {
+      handleManualRefresh();
+    }, 25000);
+
+    return () => clearInterval(refreshInterval);
+  }, [showQR, selectedClass, handleManualRefresh]);
 
   const handleClassSelection = useCallback(async (cls) => {
     setSelectedClass(cls);
@@ -320,7 +329,12 @@ const FacultyDashboard = () => {
 
     try {
       // Start attendance session on backend
-      await classApi.startAttendance(selectedClass.id);
+      const response = await classApi.startAttendance(selectedClass.id);
+      const qrToken = response.attendance?.qrToken || response.qrToken;
+
+      if (!qrToken) {
+        throw new Error('Server did not return a QR token');
+      }
 
       setShowQR(true);
       setPresentStudents([]);
@@ -330,10 +344,10 @@ const FacultyDashboard = () => {
 
       // Wait for DOM to render QR container
       setTimeout(() => {
-        const qrGenerated = generateQRCode(selectedClass);
+        const qrGenerated = generateQRCode(qrToken);
         if (!qrGenerated) {
           setTimeout(() => {
-            generateQRCode(selectedClass);
+            generateQRCode(qrToken);
           }, 100);
         }
       }, 350);
@@ -354,9 +368,9 @@ const FacultyDashboard = () => {
   const handleQRClick = useCallback(() => {
     setShowQRModal(true);
     requestAnimationFrame(() => {
-      generateQRCode(selectedClass, 'qr-code-modal', false);
+      generateQRCode(qrValue, 'qr-code-modal', false);
     });
-  }, [selectedClass, generateQRCode]);
+  }, [qrValue, generateQRCode]);
 
   const handleMarkPresent = useCallback((student) => {
     setPresentStudents(prev => [...prev, student]);
@@ -509,17 +523,24 @@ const FacultyDashboard = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-3 mb-6 flex-wrap">
           <button
             onClick={() => setShowHistory(true)}
-            className="bg-white hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-lg border border-gray-200 flex items-center justify-center flex-1 text-sm font-medium transition-colors shadow-sm"
+            className="bg-white hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-lg border border-gray-200 flex items-center justify-center flex-1 min-w-[200px] text-sm font-medium transition-colors shadow-sm"
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Analytics & Reports
           </button>
           <button
+            onClick={() => setShowAuditTrail(true)}
+            className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg flex items-center justify-center flex-1 min-w-[200px] text-sm font-medium transition-colors shadow-sm"
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            Audit Trail
+          </button>
+          <button
             onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center justify-center flex-1 text-sm font-medium transition-colors shadow-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center justify-center flex-1 min-w-[200px] text-sm font-medium transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add New Class
@@ -600,6 +621,15 @@ const FacultyDashboard = () => {
         <AttendanceHistory
           classes={classes}
           onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {showAuditTrail && (
+        <AuditTrailModal
+          isOpen={showAuditTrail}
+          onClose={() => setShowAuditTrail(false)}
+          classes={classes}
+          initialClassId={selectedClass?.id || 'all'}
         />
       )}
     </div>
